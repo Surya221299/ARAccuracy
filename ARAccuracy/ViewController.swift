@@ -8,20 +8,32 @@
 import UIKit
 import RealityKit
 import ARKit
-import Combine
 
 class ViewController: UIViewController {
 
     let arView = ARView(frame: .zero)
     let placeButton = UIButton(type: .system)
-    private var cancellables = Set<AnyCancellable>()
 
+    private let overlayLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Pohon"
+        label.font = UIFont.boldSystemFont(ofSize: 24)
+        label.textColor = .white
+        label.backgroundColor = UIColor.black.withAlphaComponent(0.6)
+        label.textAlignment = .center
+        label.layer.cornerRadius = 8
+        label.clipsToBounds = true
+        label.alpha = 0
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
 
     override func viewDidLoad() {
         super.viewDidLoad()
 
         setupARView()
         setupButton()
+        setupOverlayLabel()
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -64,6 +76,16 @@ class ViewController: UIViewController {
         ])
     }
 
+    private func setupOverlayLabel() {
+        view.addSubview(overlayLabel)
+        NSLayoutConstraint.activate([
+            overlayLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+            overlayLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            overlayLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 100),
+            overlayLabel.heightAnchor.constraint(equalToConstant: 40)
+        ])
+    }
+
     private func startSession() {
         let configuration = ARWorldTrackingConfiguration()
         configuration.planeDetection = [.horizontal, .vertical]
@@ -92,10 +114,15 @@ class ViewController: UIViewController {
             let modelEntity = try await ModelEntity(named: "pohon")
             modelEntity.setScale(SIMD3<Float>(repeating: 0.001), relativeTo: nil)
             anchor.addChild(modelEntity)
+            showOverlayText()
         } catch {
             print("Failed to load model:", error)
         }
     }
 
-
+    private func showOverlayText() {
+        UIView.animate(withDuration: 0.3) {
+            self.overlayLabel.alpha = 1
+        }
+    }
 }
