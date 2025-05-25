@@ -60,6 +60,11 @@ private extension ViewController {
             anchor.removeFromParent()
             placedAnchor = nil
         }
+        
+        // Hide the overlay label
+        UIView.animate(withDuration: 0.3) {
+            self.overlayLabel.alpha = 0
+        }
     }
 }
 
@@ -109,10 +114,10 @@ private extension ViewController {
         deleteButton.setTitleColor(.white, for: .normal)
         deleteButton.layer.cornerRadius = 10
         deleteButton.addTarget(self, action: #selector(deleteObjectTapped), for: .touchUpInside)
-
+        
         deleteButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(deleteButton)
-
+        
         NSLayoutConstraint.activate([
             deleteButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             deleteButton.bottomAnchor.constraint(equalTo: placeButton.topAnchor, constant: -15),
@@ -149,18 +154,18 @@ private extension ViewController {
         
         arView.session.run(configuration, options: [.removeExistingAnchors, .resetTracking])
     }
-
+    
     private func placeObject() {
         guard let cameraTransform = arView.session.currentFrame?.camera.transform else { return }
-
+        
         var translation = matrix_identity_float4x4
         translation.columns.3.z = -2.0
         let transform = simd_mul(cameraTransform, translation)
-
+        
         let anchor = AnchorEntity(world: transform)
         placedAnchor = anchor
         arView.scene.addAnchor(anchor)
-
+        
         do {
             let modelEntity = try ModelEntity.loadModel(named: "pohon")
             modelEntity.setScale(SIMD3<Float>(repeating: 0.001), relativeTo: nil)
