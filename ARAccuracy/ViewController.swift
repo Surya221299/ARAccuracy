@@ -11,6 +11,9 @@ import ARKit
 
 class ViewController: UIViewController {
     
+    private var placedAnchor: AnchorEntity?
+    let deleteButton = UIButton(type: .system)
+    
     let arView = ARView(frame: .zero)
     let placeButton = UIButton(type: .system)
     private let overlayLabel: UILabel = {
@@ -43,11 +46,19 @@ class ViewController: UIViewController {
         super.viewWillDisappear(animated)
         arView.session.pause()
     }
+}
+
+// MARK: Actions
+private extension ViewController {
     
-    // MARK: Actions
     @objc private func placeObjectTapped() {
-        Task {
-            await placeObject()
+        placeObject()
+    }
+    
+    @objc private func deleteObjectTapped() {
+        if let anchor = placedAnchor {
+            anchor.removeFromParent()
+            placedAnchor = nil
         }
     }
 }
@@ -69,6 +80,7 @@ private extension ViewController {
     
     func setupUI() {
         setupButton()
+        setupDeleteButton()
         setupOverlayLabel()
     }
     
@@ -87,6 +99,25 @@ private extension ViewController {
             placeButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -30),
             placeButton.widthAnchor.constraint(equalToConstant: 160),
             placeButton.heightAnchor.constraint(equalToConstant: 50)
+        ])
+    }
+    
+    private func setupDeleteButton() {
+        deleteButton.setTitle("Delete Object", for: .normal)
+        deleteButton.titleLabel?.font = .boldSystemFont(ofSize: 18)
+        deleteButton.backgroundColor = UIColor.systemRed.withAlphaComponent(0.8)
+        deleteButton.setTitleColor(.white, for: .normal)
+        deleteButton.layer.cornerRadius = 10
+        deleteButton.addTarget(self, action: #selector(deleteObjectTapped), for: .touchUpInside)
+
+        deleteButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(deleteButton)
+
+        NSLayoutConstraint.activate([
+            deleteButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            deleteButton.bottomAnchor.constraint(equalTo: placeButton.topAnchor, constant: -15),
+            deleteButton.widthAnchor.constraint(equalToConstant: 160),
+            deleteButton.heightAnchor.constraint(equalToConstant: 50)
         ])
     }
     
@@ -118,19 +149,20 @@ private extension ViewController {
         
         arView.session.run(configuration, options: [.removeExistingAnchors, .resetTracking])
     }
-    
-    private func placeObject() async {
+
+    private func placeObject() {
         guard let cameraTransform = arView.session.currentFrame?.camera.transform else { return }
-        
+
         var translation = matrix_identity_float4x4
         translation.columns.3.z = -2.0
         let transform = simd_mul(cameraTransform, translation)
-        
+
         let anchor = AnchorEntity(world: transform)
+        placedAnchor = anchor
         arView.scene.addAnchor(anchor)
-        
+
         do {
-            let modelEntity = try await ModelEntity(named: "pohon")
+            let modelEntity = try ModelEntity.loadModel(named: "pohon")
             modelEntity.setScale(SIMD3<Float>(repeating: 0.001), relativeTo: nil)
             anchor.addChild(modelEntity)
             showOverlayText()
