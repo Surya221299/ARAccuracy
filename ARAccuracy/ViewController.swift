@@ -8,10 +8,14 @@
 import UIKit
 import RealityKit
 import ARKit
+import Photos
 
 class ViewController: UIViewController {
     
     private var placedAnchor: AnchorEntity?
+    
+    let captureButton = UIButton(type: .system)
+    
     let deleteButton = UIButton(type: .system)
     
     let arView = ARView(frame: .zero)
@@ -66,6 +70,24 @@ private extension ViewController {
             self.overlayLabel.alpha = 0
         }
     }
+    
+    @objc private func captureImageTapped() {
+        let renderer = UIGraphicsImageRenderer(size: arView.bounds.size)
+        let image = renderer.image { ctx in
+            arView.drawHierarchy(in: arView.bounds, afterScreenUpdates: true)
+        }
+
+        DispatchQueue.main.async {
+            PHPhotoLibrary.requestAuthorization { status in
+                if status == .authorized {
+                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                } else {
+                    print("Photo Library access denied or not fully authorized.")
+                }
+            }
+        }
+    }
+
 }
 
 // MARK: AR - SetUp
@@ -87,6 +109,7 @@ private extension ViewController {
         setupButton()
         setupDeleteButton()
         setupOverlayLabel()
+        setupCaptureButton()
     }
     
     private func setupButton() {
@@ -133,6 +156,25 @@ private extension ViewController {
             overlayLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             overlayLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 100),
             overlayLabel.heightAnchor.constraint(equalToConstant: 40)
+        ])
+    }
+    
+    private func setupCaptureButton() {
+        captureButton.setTitle("Capture Image", for: .normal)
+        captureButton.titleLabel?.font = .boldSystemFont(ofSize: 18)
+        captureButton.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.8)
+        captureButton.setTitleColor(.white, for: .normal)
+        captureButton.layer.cornerRadius = 10
+        captureButton.addTarget(self, action: #selector(captureImageTapped), for: .touchUpInside)
+
+        captureButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(captureButton)
+
+        NSLayoutConstraint.activate([
+            captureButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            captureButton.bottomAnchor.constraint(equalTo: deleteButton.topAnchor, constant: -15),
+            captureButton.widthAnchor.constraint(equalToConstant: 160),
+            captureButton.heightAnchor.constraint(equalToConstant: 50)
         ])
     }
     
