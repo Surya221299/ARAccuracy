@@ -73,20 +73,76 @@ private extension ViewController {
     
     @objc private func captureImageTapped() {
         let renderer = UIGraphicsImageRenderer(size: arView.bounds.size)
-        let image = renderer.image { ctx in
+        let capturedImage = renderer.image { ctx in
             arView.drawHierarchy(in: arView.bounds, afterScreenUpdates: true)
         }
+        
+        // 1. White flash animation
+        let flashView = UIView(frame: arView.bounds)
+        flashView.backgroundColor = .white
+        flashView.alpha = 0
+        view.addSubview(flashView)
 
-        DispatchQueue.main.async {
+        UIView.animate(withDuration: 0.3, animations: {
+            flashView.alpha = 1
+        }) { _ in
+            UIView.animate(withDuration: 0.5, animations: {
+                flashView.alpha = 0
+            }) { _ in
+                flashView.removeFromSuperview()
+            }
+        }
+
+        // 2. Screenshot preview animation (portrait aspect ratio)
+        let imageView = UIImageView(image: capturedImage)
+        imageView.frame = arView.frame
+        imageView.layer.cornerRadius = 12
+        imageView.clipsToBounds = true
+        imageView.contentMode = .scaleAspectFill
+
+        // 🔲 Add white stroke
+        imageView.layer.borderColor = UIColor.white.cgColor
+        imageView.layer.borderWidth = 2
+
+        view.addSubview(imageView)
+
+        // Portrait rectangle dimensions
+        let previewWidth: CGFloat = 90
+        let previewHeight: CGFloat = 160
+        let safeTop = view.safeAreaInsets.top
+        let endFrame = CGRect(
+            x: view.bounds.width - previewWidth - 16,
+            y: safeTop + 16,
+            width: previewWidth,
+            height: previewHeight
+        )
+
+        UIView.animate(withDuration: 0.6, delay: 0.1, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.5, options: [], animations: {
+            imageView.frame = endFrame
+            imageView.alpha = 0.9
+            imageView.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+        }) { _ in
+            // Keep it for 1.5 seconds, then fade out
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                UIView.animate(withDuration: 0.3, animations: {
+                    imageView.alpha = 0
+                }) { _ in
+                    imageView.removeFromSuperview()
+                }
+            }
+
+            // 3. Save to photo library (non-blocking)
             PHPhotoLibrary.requestAuthorization { status in
                 if status == .authorized {
-                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                    UIImageWriteToSavedPhotosAlbum(capturedImage, nil, nil, nil)
                 } else {
-                    print("Photo Library access denied or not fully authorized.")
+                    print("Photo library access denied.")
                 }
             }
         }
     }
+
+
 
 }
 
