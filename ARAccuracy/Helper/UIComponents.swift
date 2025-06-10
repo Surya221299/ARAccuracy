@@ -102,7 +102,7 @@ class CircularGlassButton: UIView {
         layer.masksToBounds = true
 
         // Dark blur effect
-        let blurEffect = UIBlurEffect(style: .systemThinMaterialDark)
+        let blurEffect = UIBlurEffect(style: .systemMaterialDark)
         let blurView = UIVisualEffectView(effect: blurEffect)
         blurView.translatesAutoresizingMaskIntoConstraints = false
         blurView.layer.cornerRadius = 24
