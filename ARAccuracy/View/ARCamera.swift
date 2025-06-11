@@ -18,14 +18,17 @@ class ARCamera: UIViewController {
     private var deleteGlassButton: CircularGlassButton!
     private var historyGlassButton: CircularGlassButton!
     private var rotateGlassButton: CircularGlassButton!
+    private var exitGlassButton: CircularGlassButton!
     private let captureButton = UIButton(type: .system)
     private let instructionLabel = PaddedLabel()
     private let overlayLabel = UILabel()
     private let imageButton = UIButton(type: .system)
     private let imageIconView = UIImageView()
-    private let imageRectangle = UIView()
+    private var imageRectangle = UIView()
     private var isRotationEnabled = false
     private var isRotateButtonBlue = false
+    private var blurView: UIVisualEffectView!
+    private var glassOverlayVisible = true
     
     // MARK: - AR State
     private let modelName: String
@@ -101,7 +104,7 @@ private extension ARCamera {
         setupDeleteButton()
         setupHistoryButton()
         setupRotateButton()
-        
+        setupExitButton()
     }
     
     func setupGestures() {
@@ -110,8 +113,8 @@ private extension ARCamera {
     }
     
     func setupGlassmorphismOverlay() {
-        let blurEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
-        let blurView = UIVisualEffectView(effect: blurEffect)
+        let blur = UIBlurEffect(style: .systemUltraThinMaterialDark)
+        blurView = UIVisualEffectView(effect: blur)
         blurView.translatesAutoresizingMaskIntoConstraints = false
         blurView.layer.cornerRadius = 20
         blurView.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
@@ -354,6 +357,29 @@ private extension ARCamera {
             backButton.heightAnchor.constraint(equalToConstant: 36)
         ])
     }
+    
+    func setupExitButton() {
+        // Force layout of rotateGlassButton to ensure anchor is resolved
+        rotateGlassButton.layoutIfNeeded()
+
+        let exitColor = UIColor(red: 1.0, green: 0.298, blue: 0.337, alpha: 1.0) // #FF4C56
+        exitGlassButton = CircularGlassButton(imageName: "exit", tintColor: exitColor)
+        exitGlassButton.alpha = 0
+        exitGlassButton.isHidden = true
+
+        view.addSubview(exitGlassButton)
+
+        NSLayoutConstraint.activate([
+            exitGlassButton.widthAnchor.constraint(equalToConstant: 48),
+            exitGlassButton.heightAnchor.constraint(equalToConstant: 48),
+            exitGlassButton.topAnchor.constraint(equalTo: rotateGlassButton.bottomAnchor, constant: 16),
+            exitGlassButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24)
+        ])
+
+        exitGlassButton.button.addTarget(self, action: #selector(exitButtonTapped), for: .touchUpInside)
+    }
+
+
 }
 
 // MARK: Actions
@@ -457,9 +483,22 @@ private extension ARCamera {
     }
     
     @objc private func historyButtonTapped() {
-        print("history tapped")
+        glassOverlayVisible.toggle()
+        
+        // Set exit button visibility *immediately* (opposite of overlay)
+        exitGlassButton.isHidden = glassOverlayVisible
+        exitGlassButton.alpha = glassOverlayVisible ? 0.0 : 1.0
+
+        // Animate overlay elements
+        UIView.animate(withDuration: 0.3) {
+            let overlayAlpha: CGFloat = self.glassOverlayVisible ? 1.0 : 0.0
+            self.blurView?.alpha = overlayAlpha
+            self.placeButton.alpha = overlayAlpha
+            self.captureButton.alpha = overlayAlpha
+            self.imageRectangle.alpha = overlayAlpha
+        }
     }
-    
+
     @objc private func captureImageTapped() {
         let capturedImage = captureARViewImage()
         
@@ -567,6 +606,10 @@ private extension ARCamera {
         rotateGlassButton.button.tintColor = newColor
     }
     
+    @objc private func exitButtonTapped() {
+        dismiss(animated: true, completion: nil)
+    }
+
 }
 
 // MARK: AR - SetUp
