@@ -31,10 +31,18 @@ class ViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
 
-        // Navigate after a short delay to simulate splash duration
+        let hasSeenOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            let homeVC = HomeViewController()
-            self.navigationController?.setViewControllers([homeVC], animated: true)
+            if hasSeenOnboarding {
+                // Navigate to Home directly
+                let homeVC = HomeViewController()
+                self.navigationController?.setViewControllers([homeVC], animated: true)
+            } else {
+                // Show onboarding
+                let onboardingVC = Onboarding()
+                self.navigationController?.setViewControllers([onboardingVC], animated: true)
+            }
         }
     }
 }

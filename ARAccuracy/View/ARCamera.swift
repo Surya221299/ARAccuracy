@@ -659,7 +659,7 @@ private extension ARCamera {
         
         do {
             let modelEntity = try ModelEntity.loadModel(named: modelName)
-            modelEntity.setScale(SIMD3<Float>(repeating: 0.01), relativeTo: nil)
+            modelEntity.setScale(SIMD3<Float>(repeating: 0.001), relativeTo: nil)
             anchor.addChild(modelEntity)
             showOverlayText()
         } catch {
