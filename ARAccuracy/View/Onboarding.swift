@@ -10,193 +10,184 @@ import SwiftUI
 import AVFoundation
 import Photos
 
-class Onboarding: UIViewController {
+class OnboardingViewController: UIViewController {
     
+    // MARK: - UI Components
     private let firstCircle = UIView()
     private let secondCircle = UIView()
     private let thirdCircle = UIView()
-    
+
     private var firstCircleWidthConstraint: NSLayoutConstraint!
     private var secondCircleWidthConstraint: NSLayoutConstraint!
     private var thirdCircleWidthConstraint: NSLayoutConstraint!
     
-    private var activeIndex = 0
     private let nextButton = UIButton(type: .system)
     
-    // Labels for 3 states
     private let introLabel = UILabel()
     private let objectTitleLabel = UILabel()
-    private let objectSubtitleLabel = UILabel()
     private let photoTitleLabel = UILabel()
-    private let photoSubtitleLabel = UILabel()
     
+    // MARK: - State
+    private var activeIndex = 0
+    
+    // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .white
-        setupBottomViews()
+        
+        setupProgressIndicators()
+        setupNextButton()
         setupLabels()
-        updateLabelVisibility()
+        updateVisibleLabel()
+    }
+}
+
+// MARK: - UI Setup
+extension OnboardingViewController {
+    
+    private func setupProgressIndicators() {
+        let stack = UIStackView(arrangedSubviews: [firstCircle, secondCircle, thirdCircle])
+        stack.axis = .horizontal
+        stack.spacing = 10
+        stack.alignment = .center
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(stack)
+        
+        setupCircle(firstCircle, initialWidth: 50, storeConstraintIn: &firstCircleWidthConstraint)
+        setupCircle(secondCircle, initialWidth: 10, storeConstraintIn: &secondCircleWidthConstraint)
+        setupCircle(thirdCircle, initialWidth: 10, storeConstraintIn: &thirdCircleWidthConstraint)
+        
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
+            stack.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -50)
+        ])
     }
     
-    private func setupBottomViews() {
-        let circlesContainer = UIStackView()
-        circlesContainer.axis = .horizontal
-        circlesContainer.spacing = 10
-        circlesContainer.alignment = .center
-        circlesContainer.translatesAutoresizingMaskIntoConstraints = false
-        
-        setupCircle(firstCircle, width: 50)
-        setupCircle(secondCircle, width: 10)
-        setupCircle(thirdCircle, width: 10)
-        
-        circlesContainer.addArrangedSubview(firstCircle)
-        circlesContainer.addArrangedSubview(secondCircle)
-        circlesContainer.addArrangedSubview(thirdCircle)
-        
-        view.addSubview(circlesContainer)
-        
+    private func setupNextButton() {
         nextButton.setTitle("Allow", for: .normal)
-        nextButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 16)
+        nextButton.titleLabel?.font = .boldSystemFont(ofSize: 16)
         nextButton.translatesAutoresizingMaskIntoConstraints = false
         nextButton.addTarget(self, action: #selector(handleNextTapped), for: .touchUpInside)
         view.addSubview(nextButton)
         
         NSLayoutConstraint.activate([
-            circlesContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
-            circlesContainer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -50),
-            
             nextButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -32),
             nextButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -50)
         ])
     }
     
-    private func setupCircle(_ circle: UIView, width: CGFloat) {
+    private func setupCircle(_ circle: UIView, initialWidth: CGFloat, storeConstraintIn constraintRef: inout NSLayoutConstraint!) {
         circle.backgroundColor = .black
+        circle.layer.cornerRadius = 5
         circle.translatesAutoresizingMaskIntoConstraints = false
-        let widthConstraint = circle.widthAnchor.constraint(equalToConstant: width)
-        widthConstraint.isActive = true
+        constraintRef = circle.widthAnchor.constraint(equalToConstant: initialWidth)
+        constraintRef.isActive = true
         circle.heightAnchor.constraint(equalToConstant: 10).isActive = true
-        circle.layer.cornerRadius = 5.0
-        
-        switch circle {
-        case firstCircle: firstCircleWidthConstraint = widthConstraint
-        case secondCircle: secondCircleWidthConstraint = widthConstraint
-        case thirdCircle: thirdCircleWidthConstraint = widthConstraint
-        default: break
-        }
     }
     
     private func setupLabels() {
-        // First state
-        introLabel.text = "Perkenalan aplikasi"
-        introLabel.font = .systemFont(ofSize: 30, weight: .semibold)
-        introLabel.textColor = .black
-        introLabel.textAlignment = .left
-        introLabel.translatesAutoresizingMaskIntoConstraints = false
+        configureLabel(introLabel, text: "Perkenalan aplikasi", fontSize: 30)
+        configureLabel(objectTitleLabel, text: "Place 3D Object\n& Story behind 3D Building")
+        configureLabel(photoTitleLabel, text: "Take Photo\n& with 3D Building")
         
-        // Second state
-        objectTitleLabel.text = "Place 3d Object\n& Story behind 3D Building"
-        objectTitleLabel.font = .systemFont(ofSize: 26, weight: .semibold)
-        objectTitleLabel.textAlignment = .left
-        objectTitleLabel.textColor = .black
-        objectTitleLabel.numberOfLines = 0
-        objectTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        [introLabel, objectTitleLabel, photoTitleLabel].forEach {
+            view.addSubview($0)
+            $0.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -200).isActive = true
+        }
         
-        objectSubtitleLabel.text = "place your 3d object front of your camera and you will get story behind 3D building in kampung vietnam"
-        objectSubtitleLabel.font = .systemFont(ofSize: 16, weight: .medium)
-        objectSubtitleLabel.textAlignment = .left
-        objectSubtitleLabel.textColor = .black
-        objectSubtitleLabel.numberOfLines = 0
-        objectSubtitleLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        // Third state
-        photoTitleLabel.text = "Take photo\n& with 3D Building"
-        photoTitleLabel.font = .systemFont(ofSize: 26, weight: .semibold)
-        photoTitleLabel.textAlignment = .left
-        photoTitleLabel.textColor = .black
-        photoTitleLabel.numberOfLines = 0
-        photoTitleLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        photoSubtitleLabel.text = "capture image with 3D Building inside it"
-        photoSubtitleLabel.font = .systemFont(ofSize: 16, weight: .medium)
-        photoSubtitleLabel.textAlignment = .left
-        photoSubtitleLabel.textColor = .black
-        photoSubtitleLabel.numberOfLines = 0
-        photoSubtitleLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        // Add to view
-        view.addSubview(introLabel)
-        view.addSubview(objectTitleLabel)
-        view.addSubview(objectSubtitleLabel)
-        view.addSubview(photoTitleLabel)
-        view.addSubview(photoSubtitleLabel)
-        
-        NSLayoutConstraint.activate([
-            introLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            introLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            
-            objectTitleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
-            objectTitleLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -20),
-            objectSubtitleLabel.topAnchor.constraint(equalTo: objectTitleLabel.bottomAnchor, constant: 12),
-            objectSubtitleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
-            objectSubtitleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -30),
-            
-            photoTitleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
-            photoTitleLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -20),
-            photoSubtitleLabel.topAnchor.constraint(equalTo: photoTitleLabel.bottomAnchor, constant: 12),
-            photoSubtitleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
-            photoSubtitleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -30)
-        ])
+        introLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
+        objectTitleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32).isActive = true
+        photoTitleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32).isActive = true
     }
     
-    private func updateLabelVisibility() {
+    private func configureLabel(_ label: UILabel, text: String, fontSize: CGFloat = 26) {
+        label.text = text
+        label.font = .systemFont(ofSize: fontSize, weight: .semibold)
+        label.textColor = .black
+        label.textAlignment = .left
+        label.numberOfLines = 0
+        label.translatesAutoresizingMaskIntoConstraints = false
+    }
+    
+    private func updateVisibleLabel() {
         introLabel.isHidden = activeIndex != 0
-        
-        let isSecond = activeIndex == 1
-        objectTitleLabel.isHidden = !isSecond
-        objectSubtitleLabel.isHidden = !isSecond
-        
-        let isThird = activeIndex == 2
-        photoTitleLabel.isHidden = !isThird
-        photoSubtitleLabel.isHidden = !isThird
+        objectTitleLabel.isHidden = activeIndex != 1
+        photoTitleLabel.isHidden = activeIndex != 2
     }
     
-    private func transitionToSecondState() {
+}
+// MARK: - Transitions
+extension OnboardingViewController {
+    
+    private func animateLabelTransition(from oldLabel: UILabel, to newLabel: UILabel) {
+        oldLabel.alpha = 1
+        UIView.animate(withDuration: 0.6) {
+            oldLabel.alpha = 0
+            oldLabel.transform = CGAffineTransform(translationX: -50, y: 0)
+        }
+        
+        newLabel.alpha = 0
+        newLabel.transform = CGAffineTransform(translationX: 50, y: 0)
+        newLabel.isHidden = false
+        
+        UIView.animate(withDuration: 0.6, delay: 0.4, options: [], animations: {
+            newLabel.alpha = 1
+            newLabel.transform = .identity
+        })
+    }
+
+    private func transitionToSecondStep() {
         firstCircleWidthConstraint.constant = 10
         secondCircleWidthConstraint.constant = 50
         nextButton.setTitle("Next", for: .normal)
         
-        UIView.animate(withDuration: 1.0, animations: {
-            self.introLabel.alpha = 0
-            self.introLabel.transform = CGAffineTransform(translationX: -50, y: 0)
-        })
+        animateLabelTransition(from: introLabel, to: objectTitleLabel)
         
-        objectTitleLabel.alpha = 0
-        objectTitleLabel.transform = CGAffineTransform(translationX: 50, y: 0)
-        objectSubtitleLabel.alpha = 0
-        objectSubtitleLabel.transform = CGAffineTransform(translationX: 50, y: 0)
-        
-        objectTitleLabel.isHidden = false
-        objectSubtitleLabel.isHidden = false
-        
-        UIView.animate(withDuration: 1.0, delay: 0.9, options: [], animations: {
-            self.objectTitleLabel.alpha = 1
-            self.objectTitleLabel.transform = .identity
-            self.objectSubtitleLabel.alpha = 1
-            self.objectSubtitleLabel.transform = .identity
-        })
-        
-        UIView.animate(withDuration: 1.5) {
+        UIView.animate(withDuration: 1.0) {
             self.view.layoutIfNeeded()
         }
         
         activeIndex = 1
     }
     
-    private func requestCameraAndPhotoLibraryPermissions(completion: @escaping (Bool, Bool) -> Void) {
+    private func transitionToFinalStep() {
+        secondCircleWidthConstraint.constant = 10
+        thirdCircleWidthConstraint.constant = 50
+        nextButton.setTitle("Get Started", for: .normal)
+        
+        animateLabelTransition(from: objectTitleLabel, to: photoTitleLabel)
+        
+        UIView.animate(withDuration: 1.0) {
+            self.view.layoutIfNeeded()
+        }
+        
+        activeIndex = 2
+    }
+    
+    private func completeOnboarding() {
+        UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+        
+        let homeVC = HomeViewController()
+        homeVC.modalPresentationStyle = .fullScreen
+        
+        let transition = CATransition()
+        transition.duration = 0.4
+        transition.type = .push
+        transition.subtype = .fromRight
+        transition.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        
+        view.window?.layer.add(transition, forKey: kCATransition)
+        present(homeVC, animated: false)
+    }
+    
+}
+
+// MARK: - Permissions
+extension OnboardingViewController {
+    
+    private func requestPermissions(completion: @escaping (Bool, Bool) -> Void) {
         var cameraGranted = false
         var photoGranted = false
-        
         let group = DispatchGroup()
         
         group.enter()
@@ -220,86 +211,50 @@ class Onboarding: UIViewController {
         }
     }
     
+    private func showPermissionAlert() {
+        let alert = UIAlertController(title: "Permissions Required",
+                                      message: "Camera and Photo Library access is needed. Please enable them in Settings.",
+                                      preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Open Settings", style: .default) { _ in
+            if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(settingsURL)
+            }
+        })
+        present(alert, animated: true)
+    }
+    
+}
+
+// MARK: Actions
+extension OnboardingViewController {
+    
     @objc private func handleNextTapped() {
-        // Reset all circle widths
-        firstCircleWidthConstraint.constant = 10
-        secondCircleWidthConstraint.constant = 10
-        thirdCircleWidthConstraint.constant = 10
-        
         switch activeIndex {
         case 0:
-            firstCircleWidthConstraint.constant = 50
-            requestCameraAndPhotoLibraryPermissions { cameraGranted, photoGranted in
-                DispatchQueue.main.async {
-                    if cameraGranted && photoGranted {
-                        self.transitionToSecondState()
-                    } else {
-                        let alert = UIAlertController(title: "Permissions Required",
-                                                      message: "Camera and Photo Library access is needed. Please enable them in Settings.",
-                                                      preferredStyle: .alert)
-                        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-                        alert.addAction(UIAlertAction(title: "Open Settings", style: .default) { _ in
-                            if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
-                                UIApplication.shared.open(settingsURL)
-                            }
-                        })
-                        self.present(alert, animated: true)
-                    }
+            requestPermissions { cameraGranted, photoGranted in
+                if cameraGranted && photoGranted {
+                    self.transitionToSecondStep()
+                } else {
+                    self.showPermissionAlert()
                 }
             }
             
         case 1:
-            thirdCircleWidthConstraint.constant = 50
-            nextButton.setTitle("Get Started", for: .normal)
+            transitionToFinalStep()
             
-            UIView.animate(withDuration: 1.0, animations: {
-                self.objectTitleLabel.alpha = 0
-                self.objectTitleLabel.transform = CGAffineTransform(translationX: -50, y: 0)
-                self.objectSubtitleLabel.alpha = 0
-                self.objectSubtitleLabel.transform = CGAffineTransform(translationX: -50, y: 0)
-            })
-            
-            photoTitleLabel.alpha = 0
-            photoTitleLabel.transform = CGAffineTransform(translationX: 50, y: 0)
-            photoSubtitleLabel.alpha = 0
-            photoSubtitleLabel.transform = CGAffineTransform(translationX: 50, y: 0)
-            photoTitleLabel.isHidden = false
-            photoSubtitleLabel.isHidden = false
-            
-            UIView.animate(withDuration: 1.0, delay: 0.9, options: [], animations: {
-                self.photoTitleLabel.alpha = 1
-                self.photoTitleLabel.transform = .identity
-                self.photoSubtitleLabel.alpha = 1
-                self.photoSubtitleLabel.transform = .identity
-            })
-            
-            UIView.animate(withDuration: 1.5) {
-                self.view.layoutIfNeeded()
-            }
-            
-            activeIndex = min(activeIndex + 1, 2)
+        case 2:
+            completeOnboarding()
             
         default:
-            UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
-            
-            let homeVC = HomeViewController()
-            homeVC.modalPresentationStyle = .fullScreen
-            
-            let transition = CATransition()
-            transition.duration = 0.4
-            transition.type = .push
-            transition.subtype = .fromRight
-            transition.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            
-            self.view.window?.layer.add(transition, forKey: kCATransition)
-            self.present(homeVC, animated: false)
+            break
         }
     }
 }
 
 struct OnboardingPreview: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> some UIViewController {
-        return Onboarding()
+        return OnboardingViewController()
     }
     
     func updateUIViewController(_ uiViewController: UIViewControllerType, context: Context) {

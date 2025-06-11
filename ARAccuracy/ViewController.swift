@@ -40,7 +40,7 @@ class ViewController: UIViewController {
                 self.navigationController?.setViewControllers([homeVC], animated: true)
             } else {
                 // Show onboarding
-                let onboardingVC = Onboarding()
+                let onboardingVC = OnboardingViewController()
                 self.navigationController?.setViewControllers([onboardingVC], animated: true)
             }
         }
