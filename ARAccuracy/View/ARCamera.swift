@@ -628,8 +628,6 @@ private extension ARCamera {
         // Set exit button visibility *immediately* (opposite of overlay)
         exitGlassButton.isHidden = glassOverlayVisible
         exitGlassButton.alpha = glassOverlayVisible ? 0.0 : 1.0
-        
-        
 
         // Animate overlay elements
         UIView.animate(withDuration: 0.3) {
@@ -647,7 +645,6 @@ private extension ARCamera {
             loadSubtitles()
             playAudio()
         }
-        
     }
 
     @objc private func captureImageTapped() {
@@ -776,6 +773,8 @@ private extension ARCamera {
         // Hide exit button
         exitGlassButton.isHidden = true
         exitGlassButton.alpha = 0.0
+        
+        glassOverlayVisible = true
 
         // Show overlay elements with animation
         UIView.animate(withDuration: 0.3) {
