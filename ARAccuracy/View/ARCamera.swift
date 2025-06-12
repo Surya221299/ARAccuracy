@@ -22,6 +22,7 @@ class ARCamera: UIViewController {
     private var exitGlassButton: CircularGlassButton!
     private let captureButton = UIButton(type: .system)
     private let instructionLabel = PaddedLabel()
+    private var backButton: UIButton!
     private let overlayLabel = UILabel()
     private let imageButton = UIButton(type: .system)
     private let imageIconView = UIImageView()
@@ -352,7 +353,7 @@ private extension ARCamera {
     }
     
     func setupBackButton() {
-        let backButton = UIButton(type: .system)
+        backButton = UIButton(type: .system)
         backButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
         backButton.tintColor = .white
         backButton.backgroundColor = UIColor.black.withAlphaComponent(0.5)
@@ -367,6 +368,7 @@ private extension ARCamera {
             backButton.heightAnchor.constraint(equalToConstant: 36)
         ])
     }
+
     
     func setupExitButton() {
         rotateGlassButton.layoutIfNeeded()
@@ -508,9 +510,7 @@ private extension ARCamera {
         overlayImageView.contentMode = .scaleAspectFill
         overlayImageView.alpha = 0.3
         overlayImageView.translatesAutoresizingMaskIntoConstraints = false
-        
         view.addSubview(overlayImageView)
-        view.bringSubviewToFront(overlayImageView) // bring to front in case subtitle is behind
 
         NSLayoutConstraint.activate([
             overlayImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -518,7 +518,13 @@ private extension ARCamera {
             overlayImageView.topAnchor.constraint(equalTo: view.topAnchor),
             overlayImageView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
+
+        // ✅ Ensure front-most views
+        view.bringSubviewToFront(backButton)
+        view.bringSubviewToFront(overlayLabel)
+        view.bringSubviewToFront(exitGlassButton) // already handled, but just in case
     }
+
 
 }
 
@@ -644,7 +650,18 @@ private extension ARCamera {
             setupSubtitleLabel()
             loadSubtitles()
             playAudio()
+
+            // Hide extra buttons
+            deleteGlassButton.alpha = 0
+            deleteGlassButton.isHidden = true
+
+            historyGlassButton.alpha = 0
+            historyGlassButton.isHidden = true
+
+            rotateGlassButton.alpha = 0
+            rotateGlassButton.isHidden = true
         }
+        
     }
 
     @objc private func captureImageTapped() {
@@ -744,7 +761,14 @@ private extension ARCamera {
     }
     
     @objc private func backButtonTapped() {
-        dismiss(animated: true, completion: nil)
+        let transition = CATransition()
+        transition.duration = 0.4
+        transition.type = .push
+        transition.subtype = .fromLeft
+        transition.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        view.window?.layer.add(transition, forKey: kCATransition)
+
+        dismiss(animated: false, completion: nil)
     }
     
     @objc private func rotateButtonTapped() {
@@ -782,6 +806,17 @@ private extension ARCamera {
             self.placeButton.alpha = 1.0
             self.captureButton.alpha = 1.0
             self.imageRectangle.alpha = 1.0
+        }
+        
+        // Show extra buttons again
+        deleteGlassButton.isHidden = false
+        historyGlassButton.isHidden = false
+        rotateGlassButton.isHidden = false
+
+        UIView.animate(withDuration: 0.3) {
+            self.deleteGlassButton.alpha = 1.0
+            self.historyGlassButton.alpha = 1.0
+            self.rotateGlassButton.alpha = 1.0
         }
     }
 
@@ -929,13 +964,14 @@ extension ARCamera {
     }
     
     private func animatePreview(_ imageView: UIImageView, completion: @escaping () -> Void) {
+        
         let previewWidth: CGFloat = 90
         let previewHeight: CGFloat = 160
         let safeTop = view.safeAreaInsets.top
         
         let endFrame = CGRect(
             x: view.bounds.width - previewWidth - 16,
-            y: safeTop + 16,
+            y: safeTop + 200,
             width: previewWidth,
             height: previewHeight
         )
