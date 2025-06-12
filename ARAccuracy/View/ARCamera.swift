@@ -9,6 +9,7 @@ import UIKit
 import RealityKit
 import ARKit
 import Photos
+import ImageIO
 
 class ARCamera: UIViewController {
     
@@ -40,6 +41,15 @@ class ARCamera: UIViewController {
     private var hasDetectedSurface = false
     private var displayLink: CADisplayLink?
     private var hasPlacedObject = false
+    
+    // MARK: History Active State
+    private var player: AVPlayer?
+    private let subtitleLabel = UILabel()
+    private var subtitles: [(time: TimeInterval, text: String)] = []
+    private var timer: Timer?
+    private let overlayImageView = UIImageView()
+    private let subtitleBackgroundView = UIVisualEffectView(effect: UIBlurEffect(style: .systemThickMaterial))
+    private var subtitleExperienceStarted = false
     
     // MARK: - Init
     init(modelName: String, labelText: String? = nil) {
@@ -359,16 +369,16 @@ private extension ARCamera {
     }
     
     func setupExitButton() {
-        // Force layout of rotateGlassButton to ensure anchor is resolved
         rotateGlassButton.layoutIfNeeded()
 
         let exitColor = UIColor(red: 1.0, green: 0.298, blue: 0.337, alpha: 1.0) // #FF4C56
-        exitGlassButton = CircularGlassButton(imageName: "exit", tintColor: exitColor)
+        exitGlassButton = CircularGlassButton(imageName: "exit", tintColor: .white)
+        exitGlassButton.setBackgroundColor(exitColor)
+
         exitGlassButton.alpha = 0
         exitGlassButton.isHidden = true
 
         view.addSubview(exitGlassButton)
-
         NSLayoutConstraint.activate([
             exitGlassButton.widthAnchor.constraint(equalToConstant: 48),
             exitGlassButton.heightAnchor.constraint(equalToConstant: 48),
@@ -376,9 +386,139 @@ private extension ARCamera {
             exitGlassButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24)
         ])
 
+        view.bringSubviewToFront(exitGlassButton)
+
         exitGlassButton.button.addTarget(self, action: #selector(exitButtonTapped), for: .touchUpInside)
     }
 
+    // MARK: History Active state
+    
+    private func setupSubtitleLabel() {
+        subtitleLabel.numberOfLines = 0
+        subtitleLabel.textAlignment = .center
+        subtitleLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
+        subtitleLabel.textColor = .white
+        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        subtitleBackgroundView.contentView.addSubview(subtitleLabel)
+        subtitleBackgroundView.translatesAutoresizingMaskIntoConstraints = false
+        subtitleBackgroundView.layer.cornerRadius = 12
+        subtitleBackgroundView.clipsToBounds = true
+        subtitleBackgroundView.alpha = 0.9
+
+        view.addSubview(subtitleBackgroundView)
+
+        // Constraints for background view
+        NSLayoutConstraint.activate([
+            subtitleBackgroundView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            subtitleBackgroundView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            subtitleBackgroundView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -40)
+        ])
+
+        // Constraints for the label inside the background
+        NSLayoutConstraint.activate([
+            subtitleLabel.leadingAnchor.constraint(equalTo: subtitleBackgroundView.leadingAnchor, constant: 12),
+            subtitleLabel.trailingAnchor.constraint(equalTo: subtitleBackgroundView.trailingAnchor, constant: -12),
+            subtitleLabel.topAnchor.constraint(equalTo: subtitleBackgroundView.topAnchor, constant: 8),
+            subtitleLabel.bottomAnchor.constraint(equalTo: subtitleBackgroundView.bottomAnchor, constant: -8)
+        ])
+    }
+
+    
+    private func loadSubtitles() {
+        guard let url = Bundle.main.url(forResource: "subtitles", withExtension: "vtt"),
+              let contents = try? String(contentsOf: url) else {
+            print("Failed to load subtitles")
+            return
+        }
+
+        subtitles = parseWebVTT(contents)
+    }
+
+    private func playAudio() {
+        guard let audioURL = Bundle.main.url(forResource: "audio", withExtension: "m4a") else {
+            print("Missing audio file")
+            return
+        }
+
+        let playerItem = AVPlayerItem(url: audioURL)
+        player = AVPlayer(playerItem: playerItem)
+        player?.play()
+        startSubtitleTimer()
+    }
+
+    private func startSubtitleTimer() {
+        timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
+            guard let self = self,
+                  let currentTime = self.player?.currentTime().seconds else { return }
+
+            for (index, subtitle) in self.subtitles.enumerated() {
+                let nextTime = index + 1 < self.subtitles.count ? self.subtitles[index + 1].time : .infinity
+                if currentTime >= subtitle.time && currentTime < nextTime {
+                    self.subtitleLabel.text = subtitle.text
+                    return
+                }
+            }
+            self.subtitleLabel.text = ""
+        }
+    }
+
+    private func parseWebVTT(_ contents: String) -> [(time: TimeInterval, text: String)] {
+        var result: [(TimeInterval, String)] = []
+
+        let blocks = contents.components(separatedBy: "\n\n")
+        for block in blocks {
+            let lines = block.components(separatedBy: .newlines).filter { !$0.isEmpty }
+            guard lines.count >= 2 else { continue }
+
+            let timeLine = lines.first(where: { $0.contains("-->") }) ?? ""
+            let text = lines.drop { !$0.contains("-->") }.dropFirst().joined(separator: " ")
+
+            let timeParts = timeLine.components(separatedBy: " --> ")
+            if let startTime = parseTime(timeParts.first) {
+                result.append((startTime, text))
+            }
+        }
+
+        return result
+    }
+
+    private func parseTime(_ timeString: String?) -> TimeInterval? {
+        guard let timeString = timeString else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+
+        let components = timeString.split(separator: ":").map { Double($0.replacingOccurrences(of: ",", with: ".")) ?? 0 }
+        if components.count == 3 {
+            return components[0] * 3600 + components[1] * 60 + components[2]
+        }
+        return nil
+    }
+    
+    private func showOverlayGif() {
+        guard let path = Bundle.main.path(forResource: "overlay", ofType: "gif"),
+              let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+              let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let animatedImage = UIImage.animatedImageWithSource(source) else {
+            print("Failed to load overlay gif")
+            return
+        }
+
+        overlayImageView.image = animatedImage
+        overlayImageView.contentMode = .scaleAspectFill
+        overlayImageView.alpha = 0.3
+        overlayImageView.translatesAutoresizingMaskIntoConstraints = false
+        
+        view.addSubview(overlayImageView)
+        view.bringSubviewToFront(overlayImageView) // bring to front in case subtitle is behind
+
+        NSLayoutConstraint.activate([
+            overlayImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            overlayImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            overlayImageView.topAnchor.constraint(equalTo: view.topAnchor),
+            overlayImageView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+    }
 
 }
 
@@ -488,6 +628,8 @@ private extension ARCamera {
         // Set exit button visibility *immediately* (opposite of overlay)
         exitGlassButton.isHidden = glassOverlayVisible
         exitGlassButton.alpha = glassOverlayVisible ? 0.0 : 1.0
+        
+        
 
         // Animate overlay elements
         UIView.animate(withDuration: 0.3) {
@@ -497,6 +639,15 @@ private extension ARCamera {
             self.captureButton.alpha = overlayAlpha
             self.imageRectangle.alpha = overlayAlpha
         }
+        
+        if !glassOverlayVisible {
+            showOverlayGif()
+            view.bringSubviewToFront(exitGlassButton)
+            setupSubtitleLabel()
+            loadSubtitles()
+            playAudio()
+        }
+        
     }
 
     @objc private func captureImageTapped() {
@@ -607,7 +758,32 @@ private extension ARCamera {
     }
     
     @objc private func exitButtonTapped() {
-        dismiss(animated: true, completion: nil)
+        // Stop player
+        player?.pause()
+        player = nil
+
+        // Invalidate timer
+        timer?.invalidate()
+        timer = nil
+
+        // Remove subtitle label and background
+        subtitleLabel.removeFromSuperview()
+        subtitleBackgroundView.removeFromSuperview()
+
+        // Remove overlay GIF
+        overlayImageView.removeFromSuperview()
+
+        // Hide exit button
+        exitGlassButton.isHidden = true
+        exitGlassButton.alpha = 0.0
+
+        // Show overlay elements with animation
+        UIView.animate(withDuration: 0.3) {
+            self.blurView?.alpha = 1.0
+            self.placeButton.alpha = 1.0
+            self.captureButton.alpha = 1.0
+            self.imageRectangle.alpha = 1.0
+        }
     }
 
 }

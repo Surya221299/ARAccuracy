@@ -84,39 +84,22 @@ class ARPlaceButton: UIButton {
 }
 
 class CircularGlassButton: UIView {
+    let button = UIButton()
+    private let backgroundView = UIView()
 
-    let button = UIButton(type: .custom)
-
-    init(imageName: String, tintColor: UIColor = .white) {
+    init(imageName: String, tintColor: UIColor) {
         super.init(frame: .zero)
-        setupView(imageName: imageName, tintColor: tintColor)
-    }
 
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    private func setupView(imageName: String, tintColor: UIColor) {
         translatesAutoresizingMaskIntoConstraints = false
-        layer.cornerRadius = 24
-        layer.masksToBounds = true
 
-        // Dark blur effect
-        let blurEffect = UIBlurEffect(style: .systemMaterialDark)
-        let blurView = UIVisualEffectView(effect: blurEffect)
-        blurView.translatesAutoresizingMaskIntoConstraints = false
-        blurView.layer.cornerRadius = 24
-        blurView.layer.masksToBounds = true
-        addSubview(blurView)
+        // Circular background view
+        backgroundView.backgroundColor = .systemBackground.withAlphaComponent(0.8) // Will override later
+        backgroundView.layer.cornerRadius = 24
+        backgroundView.clipsToBounds = true
+        backgroundView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(backgroundView)
 
-        NSLayoutConstraint.activate([
-            blurView.topAnchor.constraint(equalTo: topAnchor),
-            blurView.bottomAnchor.constraint(equalTo: bottomAnchor),
-            blurView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            blurView.trailingAnchor.constraint(equalTo: trailingAnchor)
-        ])
-
-        // Button setup
+        // Setup button with image
         let image = UIImage(named: imageName)?.withRenderingMode(.alwaysTemplate)
         button.setImage(image, for: .normal)
         button.tintColor = tintColor
@@ -124,11 +107,58 @@ class CircularGlassButton: UIView {
         addSubview(button)
 
         NSLayoutConstraint.activate([
+            widthAnchor.constraint(equalToConstant: 48),
+            heightAnchor.constraint(equalToConstant: 48),
+
+            backgroundView.widthAnchor.constraint(equalToConstant: 48),
+            backgroundView.heightAnchor.constraint(equalToConstant: 48),
+            backgroundView.centerXAnchor.constraint(equalTo: centerXAnchor),
+            backgroundView.centerYAnchor.constraint(equalTo: centerYAnchor),
+
             button.centerXAnchor.constraint(equalTo: centerXAnchor),
             button.centerYAnchor.constraint(equalTo: centerYAnchor),
-            button.widthAnchor.constraint(equalToConstant: 24),
-            button.heightAnchor.constraint(equalToConstant: 24)
+            button.widthAnchor.constraint(equalToConstant: 48),
+            button.heightAnchor.constraint(equalToConstant: 48)
         ])
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func setBackgroundColor(_ color: UIColor) {
+        backgroundView.backgroundColor = color
+    }
+}
+
+
+extension UIImage {
+    static func animatedImageWithSource(_ source: CGImageSource) -> UIImage? {
+        let count = CGImageSourceGetCount(source)
+        var images: [UIImage] = []
+        var duration: Double = 0
+
+        for i in 0..<count {
+            if let cgImage = CGImageSourceCreateImageAtIndex(source, i, nil) {
+                images.append(UIImage(cgImage: cgImage))
+            }
+
+            let delaySeconds = UIImage.delayForImageAtIndex(i, source: source)
+            duration += delaySeconds
+        }
+
+        return UIImage.animatedImage(with: images, duration: duration)
+    }
+
+    static func delayForImageAtIndex(_ index: Int, source: CGImageSource) -> Double {
+        var delay = 0.1
+        let cfProperties = CGImageSourceCopyPropertiesAtIndex(source, index, nil)
+        if let gifProperties = (cfProperties as NSDictionary?)?[kCGImagePropertyGIFDictionary as String] as? NSDictionary,
+           let unclampedDelay = gifProperties[kCGImagePropertyGIFUnclampedDelayTime as String] as? NSNumber {
+            delay = unclampedDelay.doubleValue
+        }
+
+        return delay < 0.01 ? 0.1 : delay
     }
 }
 
