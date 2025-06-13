@@ -43,7 +43,7 @@ class ARCamera: UIViewController {
     private var displayLink: CADisplayLink?
     private var hasPlacedObject = false
     
-    // MARK: History Active State
+    // MARK: History Played
     private var player: AVPlayer?
     private let subtitleLabel = UILabel()
     private var subtitles: [(time: TimeInterval, text: String)] = []
@@ -422,6 +422,14 @@ private extension ARCamera {
     }
 
     private func playAudio() {
+        // Set audio session category to allow playback in silent mode
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("Failed to set audio session category: \(error)")
+        }
+
         guard let audioURL = Bundle.main.url(forResource: "audio", withExtension: "m4a") else {
             print("Missing audio file")
             return
@@ -432,6 +440,7 @@ private extension ARCamera {
         player?.play()
         startSubtitleTimer()
     }
+
 
     private func startSubtitleTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
