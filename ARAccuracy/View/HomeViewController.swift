@@ -368,12 +368,33 @@ class BottomSheetViewController: UIViewController {
         arVC.modalPresentationStyle = .fullScreen
 
         dismiss(animated: false) {
-            if let topVC = UIApplication.shared.windows.first?.rootViewController {
+            if let topVC = UIApplication.shared.topMostViewController() {
                 topVC.present(arVC, animated: true)
             }
         }
     }
 }
+
+extension UIApplication {
+    func topMostViewController(base: UIViewController? = UIApplication.shared.windows
+        .first(where: { $0.isKeyWindow })?.rootViewController) -> UIViewController? {
+        
+        if let nav = base as? UINavigationController {
+            return topMostViewController(base: nav.visibleViewController)
+        }
+        
+        if let tab = base as? UITabBarController {
+            return topMostViewController(base: tab.selectedViewController)
+        }
+        
+        if let presented = base?.presentedViewController {
+            return topMostViewController(base: presented)
+        }
+        
+        return base
+    }
+}
+
 
 // MARK: - UIView extension for easier pinning
 
