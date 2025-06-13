@@ -193,8 +193,6 @@ extension OnboardingViewController {
             group.leave()
         }
         
-        group.enter()
-        
         group.notify(queue: .main) {
             completion(cameraGranted)
         }

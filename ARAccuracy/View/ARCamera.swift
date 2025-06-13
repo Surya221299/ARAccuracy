@@ -18,13 +18,9 @@ class ARCamera: UIViewController {
     private var deleteGlassButton: CircularGlassButton!
     private var historyGlassButton: CircularGlassButton!
     private var exitGlassButton: CircularGlassButton!
-   // private let captureButton = UIButton(type: .system)
     private let instructionLabel = PaddedLabel()
     private var backButton: UIButton!
     private let overlayLabel = UILabel()
-    //private let imageButton = UIButton(type: .system)
-    //private let imageIconView = UIImageView()
-    //private var imageRectangle = UIView()
     private var isRotationEnabled = false
     private var isRotateButtonBlue = false
     private var blurView: UIVisualEffectView!
@@ -56,6 +52,7 @@ class ARCamera: UIViewController {
     private var selectedButton: UIButton?
     private var buttonWidthConstraints: [UIButton: NSLayoutConstraint] = [:]
     private var didSetupButtonStack = false
+    private var scaleButtonBackgroundView: UIVisualEffectView!
 
     // Constants
     private let activeSize: CGFloat = 32
@@ -80,7 +77,6 @@ class ARCamera: UIViewController {
         setupARView()
         setupUI()
         setupBackButton()
-        setupGestures()
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -126,11 +122,6 @@ private extension ARCamera {
         setupExitButton()
         setupScaleButton()
         setupButtonStack()
-    }
-    
-    func setupGestures() {
-        arView.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(rotateObject(_:))))
-        arView.addGestureRecognizer(UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:))))
     }
     
     func setupGlassmorphismOverlay() {
@@ -338,7 +329,6 @@ private extension ARCamera {
         startSubtitleTimer()
     }
 
-
     private func startSubtitleTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
             guard let self = self,
@@ -412,7 +402,7 @@ private extension ARCamera {
         // ✅ Ensure front-most views
         view.bringSubviewToFront(backButton)
         view.bringSubviewToFront(overlayLabel)
-        view.bringSubviewToFront(exitGlassButton) // already handled, but just in case
+        view.bringSubviewToFront(exitGlassButton)
     }
 
     private func setupScaleButton() {
@@ -435,49 +425,45 @@ private extension ARCamera {
     // MARK: 0.5, 1, 2, 3 X State
     
     private func setupButtonStack() {
-        // Container for glassmorphism background
-        let backgroundView = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterialDark))
+        scaleButtonBackgroundView = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterialDark))
+        let backgroundView = scaleButtonBackgroundView!
         backgroundView.translatesAutoresizingMaskIntoConstraints = false
         backgroundView.layer.cornerRadius = 20
         backgroundView.clipsToBounds = true
+        backgroundView.alpha = 0
+        backgroundView.isHidden = true
         view.addSubview(backgroundView)
 
-        // Horizontal stack view for buttons
+        // Stack view setup...
         let stackView = UIStackView()
         stackView.axis = .horizontal
         stackView.spacing = 16
         stackView.alignment = .center
         stackView.translatesAutoresizingMaskIntoConstraints = false
-
         backgroundView.contentView.addSubview(stackView)
 
-        // Add buttons to stack
         for value in values {
             let button = createButton(title: value)
             stackView.addArrangedSubview(button)
         }
 
-        // Constraints for backgroundView (centered)
         NSLayoutConstraint.activate([
             backgroundView.centerXAnchor.constraint(equalTo: placeButton.centerXAnchor),
-            backgroundView.bottomAnchor.constraint(equalTo: placeButton.topAnchor, constant: -32)
-        ])
-
-        // Padding around the stack view inside background
-        NSLayoutConstraint.activate([
+            backgroundView.bottomAnchor.constraint(equalTo: placeButton.topAnchor, constant: -32),
             stackView.topAnchor.constraint(equalTo: backgroundView.contentView.topAnchor, constant: 8),
             stackView.bottomAnchor.constraint(equalTo: backgroundView.contentView.bottomAnchor, constant: -8),
             stackView.leadingAnchor.constraint(equalTo: backgroundView.contentView.leadingAnchor, constant: 8),
             stackView.trailingAnchor.constraint(equalTo: backgroundView.contentView.trailingAnchor, constant: -8)
         ])
 
-        // Select the second button as default
+        // Default select
         if stackView.arrangedSubviews.count > 1,
            let second = stackView.arrangedSubviews[1] as? UIButton {
             setActive(button: second)
             selectedButton = second
         }
     }
+
 
     private func createButton(title: String) -> UIButton {
         let button = UIButton(type: .system)
@@ -567,17 +553,22 @@ private extension ARCamera {
         
         deleteGlassButton.alpha = 0
         deleteGlassButton.isHidden = false
+        
         historyGlassButton.alpha = 0
         historyGlassButton.isHidden = false
         
         scaleGlassButton.alpha = 0
         scaleGlassButton.isHidden = false
         
+        scaleButtonBackgroundView.alpha = 0
+        scaleButtonBackgroundView.isHidden = false
+        
         
         UIView.animate(withDuration: 0.3) {
             self.deleteGlassButton.alpha = 1.0
             self.historyGlassButton.alpha = 1.0
             self.scaleGlassButton.alpha = 1.0
+            self.scaleButtonBackgroundView.alpha = 1.0
         }
         
     }
@@ -598,10 +589,12 @@ private extension ARCamera {
             self.deleteGlassButton.alpha = 0
             self.historyGlassButton.alpha = 0
             self.scaleGlassButton.alpha = 0
+            self.scaleButtonBackgroundView.alpha = 0
         }) { _ in
             self.deleteGlassButton.isHidden = true
             self.historyGlassButton.isHidden = true
             self.scaleGlassButton.isHidden = true
+            self.scaleButtonBackgroundView.isHidden = true
         }
         
         instructionLabel.isHidden = false
@@ -638,25 +631,12 @@ private extension ARCamera {
             
             scaleGlassButton.alpha = 0
             scaleGlassButton.isHidden = true
+            
+            scaleButtonBackgroundView.alpha = 0
+            scaleButtonBackgroundView.isHidden = true
+
         }
         
-    }
-    
-    @objc private func rotateObject(_ gesture: UIPanGestureRecognizer) {
-        guard isRotateButtonBlue else { return }
-        guard let anchor = placedAnchor,
-              let modelEntity = anchor.children.first as? ModelEntity else { return }
-        
-        let translation = gesture.translation(in: arView)
-        let sensitivity: Float = 1.5
-        
-        let angleY = Float(translation.x) * (Float.pi / 180) * sensitivity
-        modelEntity.transform.rotation = simd_mul(
-            modelEntity.transform.rotation,
-            simd_quatf(angle: angleY, axis: SIMD3<Float>(0, 1, 0)) // 🔁 Rotate around Y instead of X
-        )
-        
-        gesture.setTranslation(.zero, in: arView)
     }
     
     @objc private func performSurfaceRaycast() {
@@ -681,31 +661,6 @@ private extension ARCamera {
         } else {
             instructionLabel.text = "Detecting Surface"
             instructionLabel.backgroundColor = UIColor.red
-        }
-    }
-    
-    @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
-        guard isRotateButtonBlue else { return }
-        let zoomSpeed: Float = 0.3
-        let scale = Float(gesture.scale)
-        
-        // Flip the direction so pinch out (scale > 1) moves object closer (less negative)
-        let delta = (scale - 1.0) * zoomSpeed
-        
-        // Adjust model distance — increase to move farther (more negative), decrease to move closer (less negative)
-        modelDistance += delta
-        
-        // Clamp between a reasonable range
-        let minDistance: Float = -5.0
-        let maxDistance: Float = -0.2
-        modelDistance = min(max(modelDistance, minDistance), maxDistance)
-        
-        // Reset scale to avoid compounding
-        gesture.scale = 1.0
-        
-        // Apply to the preview model
-        if let previewAnchor = previewAnchor {
-            previewAnchor.position = [0, 0, modelDistance]
         }
     }
     
@@ -752,11 +707,13 @@ private extension ARCamera {
         deleteGlassButton.isHidden = false
         historyGlassButton.isHidden = false
         scaleGlassButton.isHidden = false
+        scaleButtonBackgroundView.isHidden = false
 
         UIView.animate(withDuration: 0.3) {
             self.deleteGlassButton.alpha = 1.0
             self.historyGlassButton.alpha = 1.0
             self.scaleGlassButton.alpha = 1.0
+            self.scaleButtonBackgroundView.alpha = 1.0
             
         }
     }
@@ -862,75 +819,5 @@ private extension ARCamera {
         
         instructionLabel.isHidden = true
     }
-    
-}
-
-// MARK: Image Capture Handling
-extension ARCamera {
-    
-    private func captureARViewImage() -> UIImage {
-        let renderer = UIGraphicsImageRenderer(size: arView.bounds.size)
-        return renderer.image { ctx in
-            arView.drawHierarchy(in: arView.bounds, afterScreenUpdates: true)
-        }
-    }
-    
-    private func showWhiteFlash() {
-        let flashView = UIView(frame: arView.bounds)
-        flashView.backgroundColor = .white
-        flashView.alpha = 0
-        view.addSubview(flashView)
-        
-        UIView.animate(withDuration: 0.3, animations: {
-            flashView.alpha = 1
-        }) { _ in
-            UIView.animate(withDuration: 0.5, animations: {
-                flashView.alpha = 0
-            }) { _ in
-                flashView.removeFromSuperview()
-            }
-        }
-    }
-    
-    private func createPreviewImageView(with image: UIImage) -> UIImageView {
-        let imageView = UIImageView(image: image)
-        imageView.frame = arView.frame
-        imageView.layer.cornerRadius = 12
-        imageView.layer.borderColor = UIColor.white.cgColor
-        imageView.layer.borderWidth = 2
-        imageView.clipsToBounds = true
-        imageView.contentMode = .scaleAspectFill
-        return imageView
-    }
-    
-    private func animatePreview(_ imageView: UIImageView, completion: @escaping () -> Void) {
-        
-        let previewWidth: CGFloat = 90
-        let previewHeight: CGFloat = 160
-        let safeTop = view.safeAreaInsets.top
-        
-        let endFrame = CGRect(
-            x: view.bounds.width - previewWidth - 16,
-            y: safeTop + 200,
-            width: previewWidth,
-            height: previewHeight
-        )
-        
-        UIView.animate(withDuration: 0.6, delay: 0.3, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.5, options: [], animations: {
-            imageView.frame = endFrame
-            imageView.alpha = 0.9
-            imageView.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
-        }) { _ in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                UIView.animate(withDuration: 0.3, animations: {
-                    imageView.alpha = 0
-                }) { _ in
-                    imageView.removeFromSuperview()
-                    completion()
-                }
-            }
-        }
-    }
-    
 }
 
