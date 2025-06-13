@@ -8,7 +8,6 @@
 import UIKit
 import RealityKit
 import ARKit
-import Photos
 import ImageIO
 
 class ARCamera: UIViewController {
@@ -19,13 +18,13 @@ class ARCamera: UIViewController {
     private var deleteGlassButton: CircularGlassButton!
     private var historyGlassButton: CircularGlassButton!
     private var exitGlassButton: CircularGlassButton!
-    private let captureButton = UIButton(type: .system)
+   // private let captureButton = UIButton(type: .system)
     private let instructionLabel = PaddedLabel()
     private var backButton: UIButton!
     private let overlayLabel = UILabel()
-    private let imageButton = UIButton(type: .system)
-    private let imageIconView = UIImageView()
-    private var imageRectangle = UIView()
+    //private let imageButton = UIButton(type: .system)
+    //private let imageIconView = UIImageView()
+    //private var imageRectangle = UIView()
     private var isRotationEnabled = false
     private var isRotateButtonBlue = false
     private var blurView: UIVisualEffectView!
@@ -51,6 +50,18 @@ class ARCamera: UIViewController {
     private let overlayImageView = UIImageView()
     private let subtitleBackgroundView = UIVisualEffectView(effect: UIBlurEffect(style: .systemThickMaterial))
     private var subtitleExperienceStarted = false
+    
+    // MARK: 0.5, 1, 2, 3 X State
+    private let values = ["0.5", "1", "2", "3"]
+    private var selectedButton: UIButton?
+    private var buttonWidthConstraints: [UIButton: NSLayoutConstraint] = [:]
+    private var didSetupButtonStack = false
+
+    // Constants
+    private let activeSize: CGFloat = 32
+    private let inactiveSize: CGFloat = 24
+    private let buttonFontSize: CGFloat = 10
+    private let padding: CGFloat = 3
     
     // MARK: - Init
     init(modelName: String, labelText: String? = nil) {
@@ -108,15 +119,13 @@ private extension ARCamera {
     func setupUI() {
         setupGlassmorphismOverlay()
         setupPlaceButton()
-        setupCaptureButton(hidden: true)
         setupInstructionLabel()
         setupOverlayLabel()
-        setupImageRectangle(hidden: true)
         setupDeleteButton()
         setupHistoryButton()
         setupExitButton()
         setupScaleButton()
-
+        setupButtonStack()
     }
     
     func setupGestures() {
@@ -154,83 +163,6 @@ private extension ARCamera {
         ])
     }
     
-    func setupImageButton() {
-        imageButton.backgroundColor = .black
-        imageButton.layer.cornerRadius = 8
-        imageButton.layer.borderWidth = 2
-        imageButton.layer.borderColor = UIColor.white.cgColor
-        imageButton.clipsToBounds = true
-        
-        // Smooth corner on iOS 13+
-        if #available(iOS 13.0, *) {
-            imageButton.layer.cornerCurve = .continuous
-        }
-        
-        // Set icon image
-        let iconImage = UIImage(named: "image")
-        let iconImageView = UIImageView(image: iconImage)
-        iconImageView.contentMode = .scaleAspectFit
-        iconImageView.translatesAutoresizingMaskIntoConstraints = false
-        imageButton.addSubview(iconImageView)
-        
-        NSLayoutConstraint.activate([
-            iconImageView.centerXAnchor.constraint(equalTo: imageButton.centerXAnchor),
-            iconImageView.centerYAnchor.constraint(equalTo: imageButton.centerYAnchor),
-            iconImageView.widthAnchor.constraint(equalToConstant: 30),
-            iconImageView.heightAnchor.constraint(equalToConstant: 30)
-        ])
-        
-        imageButton.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(imageButton)
-        
-        NSLayoutConstraint.activate([
-            imageButton.centerYAnchor.constraint(equalTo: placeButton.centerYAnchor),
-            imageButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 48),
-            imageButton.widthAnchor.constraint(equalToConstant: 55),
-            imageButton.heightAnchor.constraint(equalToConstant: 60)
-        ])
-    }
-    
-    func setupImageRectangle(hidden: Bool = false) {
-        imageRectangle.backgroundColor = .black
-        imageRectangle.layer.cornerRadius = 8
-        imageRectangle.layer.borderColor = UIColor.white.cgColor
-        imageRectangle.layer.borderWidth = 2
-        imageRectangle.translatesAutoresizingMaskIntoConstraints = false
-        
-        if #available(iOS 13.0, *) {
-            imageRectangle.layer.cornerCurve = .continuous
-        }
-        
-        // Configure imageIconView
-        imageIconView.contentMode = .scaleAspectFit
-        imageIconView.clipsToBounds = true
-        imageIconView.layer.cornerRadius = 8
-        imageIconView.layer.cornerCurve = .continuous
-        imageIconView.translatesAutoresizingMaskIntoConstraints = false
-        imageIconView.image = UIImage(named: "image")
-        imageRectangle.addSubview(imageIconView)
-        
-        // Add fixed size constraints (only for the placeholder)
-        NSLayoutConstraint.activate([
-            imageIconView.centerXAnchor.constraint(equalTo: imageRectangle.centerXAnchor),
-            imageIconView.centerYAnchor.constraint(equalTo: imageRectangle.centerYAnchor),
-            imageIconView.widthAnchor.constraint(equalToConstant: 34),
-            imageIconView.heightAnchor.constraint(equalToConstant: 34)
-        ])
-        
-        imageRectangle.alpha = hidden ? 0 : 1
-        imageRectangle.isHidden = hidden
-        view.insertSubview(imageRectangle, belowSubview: placeButton)
-        
-        NSLayoutConstraint.activate([
-            imageRectangle.centerYAnchor.constraint(equalTo: placeButton.centerYAnchor),
-            imageRectangle.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 48),
-            imageRectangle.widthAnchor.constraint(equalToConstant: 55),
-            imageRectangle.heightAnchor.constraint(equalToConstant: 60)
-        ])
-    }
-    
     func setupDeleteButton() {
         let redColor = UIColor(red: 1.0, green: 0.365, blue: 0.365, alpha: 1.0) // #FF5D5D
         deleteGlassButton = CircularGlassButton(imageName: "trash", tintColor: redColor)
@@ -262,41 +194,6 @@ private extension ARCamera {
         ])
         
         historyGlassButton.button.addTarget(self, action: #selector(historyButtonTapped), for: .touchUpInside)
-    }
-    
-    func setupCaptureButton(hidden: Bool = false) {
-        // Style the captureButton as a custom circle
-        captureButton.backgroundColor = UIColor.black.withAlphaComponent(0.5)
-        captureButton.layer.cornerRadius = 25
-        captureButton.layer.borderColor = UIColor.white.cgColor
-        captureButton.layer.borderWidth = 0.5
-        captureButton.clipsToBounds = true
-        captureButton.translatesAutoresizingMaskIntoConstraints = false
-        
-        // Add camera icon
-        let iconImageView = UIImageView(image: UIImage(named: "camera"))
-        iconImageView.contentMode = .scaleAspectFit
-        iconImageView.translatesAutoresizingMaskIntoConstraints = false
-        captureButton.addSubview(iconImageView)
-        
-        NSLayoutConstraint.activate([
-            iconImageView.centerXAnchor.constraint(equalTo: captureButton.centerXAnchor),
-            iconImageView.centerYAnchor.constraint(equalTo: captureButton.centerYAnchor),
-            iconImageView.widthAnchor.constraint(equalToConstant: 28),
-            iconImageView.heightAnchor.constraint(equalToConstant: 28)
-        ])
-        
-        captureButton.addTarget(self, action: #selector(captureImageTapped), for: .touchUpInside)
-        captureButton.alpha = hidden ? 0 : 1
-        captureButton.isHidden = hidden
-        view.insertSubview(captureButton, belowSubview: placeButton)
-        
-        NSLayoutConstraint.activate([
-            captureButton.centerYAnchor.constraint(equalTo: placeButton.centerYAnchor),
-            captureButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -48),
-            captureButton.widthAnchor.constraint(equalToConstant: 50),
-            captureButton.heightAnchor.constraint(equalToConstant: 50)
-        ])
     }
     
     func setupInstructionLabel() {
@@ -535,10 +432,120 @@ private extension ARCamera {
         scaleGlassButton.button.addTarget(self, action: #selector(scaleButtonTapped), for: .touchUpInside)
     }
     
+    // MARK: 0.5, 1, 2, 3 X State
+    
+    private func setupButtonStack() {
+        // Container for glassmorphism background
+        let backgroundView = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterialDark))
+        backgroundView.translatesAutoresizingMaskIntoConstraints = false
+        backgroundView.layer.cornerRadius = 20
+        backgroundView.clipsToBounds = true
+        view.addSubview(backgroundView)
+
+        // Horizontal stack view for buttons
+        let stackView = UIStackView()
+        stackView.axis = .horizontal
+        stackView.spacing = 16
+        stackView.alignment = .center
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+
+        backgroundView.contentView.addSubview(stackView)
+
+        // Add buttons to stack
+        for value in values {
+            let button = createButton(title: value)
+            stackView.addArrangedSubview(button)
+        }
+
+        // Constraints for backgroundView (centered)
+        NSLayoutConstraint.activate([
+            backgroundView.centerXAnchor.constraint(equalTo: placeButton.centerXAnchor),
+            backgroundView.bottomAnchor.constraint(equalTo: placeButton.topAnchor, constant: -32)
+        ])
+
+        // Padding around the stack view inside background
+        NSLayoutConstraint.activate([
+            stackView.topAnchor.constraint(equalTo: backgroundView.contentView.topAnchor, constant: 8),
+            stackView.bottomAnchor.constraint(equalTo: backgroundView.contentView.bottomAnchor, constant: -8),
+            stackView.leadingAnchor.constraint(equalTo: backgroundView.contentView.leadingAnchor, constant: 8),
+            stackView.trailingAnchor.constraint(equalTo: backgroundView.contentView.trailingAnchor, constant: -8)
+        ])
+
+        // Select the second button as default
+        if stackView.arrangedSubviews.count > 1,
+           let second = stackView.arrangedSubviews[1] as? UIButton {
+            setActive(button: second)
+            selectedButton = second
+        }
+    }
+
+    private func createButton(title: String) -> UIButton {
+        let button = UIButton(type: .system)
+        button.setTitle(title, for: .normal)
+        button.setTitleColor(.white, for: .normal)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: buttonFontSize, weight: .bold)
+        button.backgroundColor = UIColor.white.withAlphaComponent(0.2)
+        button.layer.borderColor = UIColor.white.withAlphaComponent(0.3).cgColor
+        button.layer.borderWidth = 0.5
+        button.clipsToBounds = true
+        button.contentEdgeInsets = UIEdgeInsets(top: padding, left: padding, bottom: padding, right: padding)
+        button.alpha = 0.3
+
+        // Auto Layout
+        button.translatesAutoresizingMaskIntoConstraints = false
+        let widthConstraint = button.widthAnchor.constraint(equalToConstant: inactiveSize)
+        widthConstraint.isActive = true
+        button.heightAnchor.constraint(equalTo: button.widthAnchor).isActive = true
+        button.layer.cornerRadius = inactiveSize / 2
+
+        // Save constraint for updates
+        buttonWidthConstraints[button] = widthConstraint
+
+        // Tap action
+        button.addTarget(self, action: #selector(handleButtonTap(_:)), for: .touchUpInside)
+
+        return button
+    }
+    
+    private func setActive(button: UIButton) {
+        let baseTitle = button.title(for: .normal)?.replacingOccurrences(of: " x", with: "") ?? ""
+        button.setTitle("\(baseTitle) x", for: .normal)
+        button.setTitleColor(.yellow, for: .normal)
+        button.alpha = 1.0
+
+        if let constraint = buttonWidthConstraints[button] {
+            constraint.constant = activeSize
+            button.layer.cornerRadius = activeSize / 2
+        }
+    }
+
+    private func setInactive(button: UIButton) {
+        let baseTitle = button.title(for: .normal)?.replacingOccurrences(of: " x", with: "") ?? ""
+        button.setTitle(baseTitle, for: .normal)
+        button.setTitleColor(.white, for: .normal)
+        button.alpha = 0.5
+
+        if let constraint = buttonWidthConstraints[button] {
+            constraint.constant = inactiveSize
+            button.layer.cornerRadius = inactiveSize / 2
+        }
+    }
+    
     @objc private func scaleButtonTapped() {
         guard let entity = placedAnchor else { return }
         let scale = SIMD3<Float>(repeating: 2.0)
         entity.scale = scale
+    }
+    
+    @objc private func handleButtonTap(_ sender: UIButton) {
+        guard sender != selectedButton else { return }
+
+        if let previous = selectedButton {
+            setInactive(button: previous)
+        }
+
+        setActive(button: sender)
+        selectedButton = sender
     }
 
 }
@@ -553,50 +560,8 @@ private extension ARCamera {
         
         placeButton.isEnabled = false
         placeButton.alpha = 0.3
-        
-        // Setup hidden initially
-        if imageRectangle.superview == nil {
-            setupImageRectangle(hidden: true)
-        }
-        if captureButton.superview == nil {
-            setupCaptureButton(hidden: true)
-        }
-        
+          
         view.layoutIfNeeded()
-        
-        // Bring to back behind placeButton
-        view.insertSubview(imageRectangle, belowSubview: placeButton)
-        view.insertSubview(captureButton, belowSubview: placeButton)
-        
-        // Start small and semi-transparent at center of placeButton
-        [imageRectangle, captureButton].forEach {
-            $0.transform = CGAffineTransform(scaleX: 0.5, y: 0.5)
-            $0.center = placeButton.center
-            $0.alpha = 0.2 // Start at 20% opacity
-            $0.isHidden = false
-        }
-        
-        // Animate to normal size and full opacity
-        UIView.animate(withDuration: 2.0,
-                       delay: 0,
-                       usingSpringWithDamping: 0.85,
-                       initialSpringVelocity: 0.4,
-                       options: [.curveEaseInOut],
-                       animations: {
-            self.imageRectangle.transform = .identity
-            self.captureButton.transform = .identity
-            self.imageRectangle.alpha = 1.0
-            self.captureButton.alpha = 1.0
-            self.view.layoutIfNeeded()
-        }, completion: { _ in
-            self.imageRectangle.translatesAutoresizingMaskIntoConstraints = false
-            self.captureButton.translatesAutoresizingMaskIntoConstraints = false
-            
-            if self.overlayLabel.superview == nil {
-                self.setupOverlayLabel()
-            }
-            
-        })
         
         instructionLabel.isHidden = true
         
@@ -624,7 +589,6 @@ private extension ARCamera {
         }
         
         hasPlacedObject = false
-        captureButton.isHidden = true
         placeButton.isEnabled = true
         placeButton.alpha = 1.0
         showPreviewModel()
@@ -656,8 +620,6 @@ private extension ARCamera {
             let overlayAlpha: CGFloat = self.glassOverlayVisible ? 1.0 : 0.0
             self.blurView?.alpha = overlayAlpha
             self.placeButton.alpha = overlayAlpha
-            self.captureButton.alpha = overlayAlpha
-            self.imageRectangle.alpha = overlayAlpha
         }
         
         if !glassOverlayVisible {
@@ -679,35 +641,6 @@ private extension ARCamera {
         }
         
     }
-
-    @objc private func captureImageTapped() {
-        let capturedImage = captureARViewImage()
-        
-        showWhiteFlash()
-        
-        let preview = createPreviewImageView(with: capturedImage)
-        view.addSubview(preview)
-        
-        animatePreview(preview) {
-            self.saveImageToPhotoLibrary(capturedImage)
-        }
-        
-        // Show captured image in the left rectangle (imageRectangle)
-        self.imageIconView.image = capturedImage
-        self.imageIconView.contentMode = .scaleAspectFill
-        self.imageIconView.clipsToBounds = true
-        
-        // Stretch imageIconView to fill imageRectangle
-        NSLayoutConstraint.deactivate(imageIconView.constraints)
-        imageIconView.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            imageIconView.topAnchor.constraint(equalTo: imageRectangle.topAnchor),
-            imageIconView.bottomAnchor.constraint(equalTo: imageRectangle.bottomAnchor),
-            imageIconView.leadingAnchor.constraint(equalTo: imageRectangle.leadingAnchor),
-            imageIconView.trailingAnchor.constraint(equalTo: imageRectangle.trailingAnchor)
-        ])
-    }
-    
     
     @objc private func rotateObject(_ gesture: UIPanGestureRecognizer) {
         guard isRotateButtonBlue else { return }
@@ -813,8 +746,6 @@ private extension ARCamera {
         UIView.animate(withDuration: 0.3) {
             self.blurView?.alpha = 1.0
             self.placeButton.alpha = 1.0
-            self.captureButton.alpha = 1.0
-            self.imageRectangle.alpha = 1.0
         }
         
         // Show extra buttons again
@@ -929,7 +860,6 @@ private extension ARCamera {
             print("Failed to load model:", error)
         }
         
-        captureButton.isHidden = false
         instructionLabel.isHidden = true
     }
     
@@ -998,16 +928,6 @@ extension ARCamera {
                     imageView.removeFromSuperview()
                     completion()
                 }
-            }
-        }
-    }
-    
-    private func saveImageToPhotoLibrary(_ image: UIImage) {
-        PHPhotoLibrary.requestAuthorization { status in
-            if status == .authorized {
-                UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-            } else {
-                print("Photo library access denied.")
             }
         }
     }

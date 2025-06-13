@@ -149,7 +149,6 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ARAccuracy/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "this app need camera permission";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We need access to save photos to your library";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "\"We need access to save photos to your library.\"";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -180,7 +179,6 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ARAccuracy/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "this app need camera permission";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We need access to save photos to your library";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "\"We need access to save photos to your library.\"";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;

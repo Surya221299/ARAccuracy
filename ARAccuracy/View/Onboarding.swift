@@ -8,8 +8,6 @@
 import UIKit
 import SwiftUI
 import AVFoundation
-import Photos
-
 class OnboardingViewController: UIViewController {
     
     // MARK: - UI Components
@@ -185,9 +183,8 @@ extension OnboardingViewController {
 // MARK: - Permissions
 extension OnboardingViewController {
     
-    private func requestPermissions(completion: @escaping (Bool, Bool) -> Void) {
+    private func requestPermissions(completion: @escaping (Bool) -> Void) {
         var cameraGranted = false
-        var photoGranted = false
         let group = DispatchGroup()
         
         group.enter()
@@ -197,17 +194,9 @@ extension OnboardingViewController {
         }
         
         group.enter()
-        PHPhotoLibrary.requestAuthorization { status in
-            if #available(iOS 14, *) {
-                photoGranted = (status == .authorized || status == .limited)
-            } else {
-                photoGranted = (status == .authorized)
-            }
-            group.leave()
-        }
         
         group.notify(queue: .main) {
-            completion(cameraGranted, photoGranted)
+            completion(cameraGranted)
         }
     }
     
@@ -232,8 +221,8 @@ extension OnboardingViewController {
     @objc private func handleNextTapped() {
         switch activeIndex {
         case 0:
-            requestPermissions { cameraGranted, photoGranted in
-                if cameraGranted && photoGranted {
+            requestPermissions { cameraGranted in
+                if cameraGranted {
                     self.transitionToSecondStep()
                 } else {
                     self.showPermissionAlert()
