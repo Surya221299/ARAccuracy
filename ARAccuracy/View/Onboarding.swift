@@ -7,7 +7,7 @@
 
 import UIKit
 import SwiftUI
-import AVFoundation
+
 class OnboardingViewController: UIViewController {
     
     // MARK: - UI Components
@@ -180,52 +180,13 @@ extension OnboardingViewController {
     
 }
 
-// MARK: - Permissions
-extension OnboardingViewController {
-    
-    private func requestPermissions(completion: @escaping (Bool) -> Void) {
-        var cameraGranted = false
-        let group = DispatchGroup()
-        
-        group.enter()
-        AVCaptureDevice.requestAccess(for: .video) { granted in
-            cameraGranted = granted
-            group.leave()
-        }
-        
-        group.notify(queue: .main) {
-            completion(cameraGranted)
-        }
-    }
-    
-    private func showPermissionAlert() {
-        let alert = UIAlertController(title: "Permissions Required",
-                                      message: "Camera and Photo Library access is needed. Please enable them in Settings.",
-                                      preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Open Settings", style: .default) { _ in
-            if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
-                UIApplication.shared.open(settingsURL)
-            }
-        })
-        present(alert, animated: true)
-    }
-    
-}
-
 // MARK: Actions
 extension OnboardingViewController {
     
     @objc private func handleNextTapped() {
         switch activeIndex {
         case 0:
-            requestPermissions { cameraGranted in
-                if cameraGranted {
-                    self.transitionToSecondStep()
-                } else {
-                    self.showPermissionAlert()
-                }
-            }
+            transitionToSecondStep()
             
         case 1:
             transitionToFinalStep()

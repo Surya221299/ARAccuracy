@@ -7,6 +7,7 @@
 
 import UIKit
 import SwiftUI
+import AVFoundation // Make sure this is imported at the top
 
 class HomeViewController: UIViewController {
 
@@ -363,15 +364,47 @@ class BottomSheetViewController: UIViewController {
     }
 
     @objc private func try3DButtonTapped() {
-        let modelName = titleText.lowercased()
-        let arVC = ARCamera(modelName: modelName)
-        arVC.modalPresentationStyle = .fullScreen
+        requestCameraPermission { granted in
+            if granted {
+                let modelName = self.titleText.lowercased()
+                let arVC = ARCamera(modelName: modelName)
+                arVC.modalPresentationStyle = .fullScreen
 
-        dismiss(animated: false) {
-            if let topVC = UIApplication.shared.topMostViewController() {
-                topVC.present(arVC, animated: true)
+                self.dismiss(animated: false) {
+                    if let topVC = UIApplication.shared.topMostViewController() {
+                        topVC.present(arVC, animated: true)
+                    }
+                }
+            } else {
+                self.showPermissionAlert()
             }
         }
+    }
+
+}
+
+extension BottomSheetViewController {
+    private func requestCameraPermission(completion: @escaping (Bool) -> Void) {
+        AVCaptureDevice.requestAccess(for: .video) { granted in
+            DispatchQueue.main.async {
+                completion(granted)
+            }
+        }
+    }
+
+    private func showPermissionAlert() {
+        let alert = UIAlertController(
+            title: "Camera Permission Required",
+            message: "Please allow camera access in Settings to experience the 3D model.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Open Settings", style: .default) { _ in
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(url)
+            }
+        })
+        present(alert, animated: true)
     }
 }
 

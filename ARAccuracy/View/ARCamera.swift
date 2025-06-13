@@ -16,7 +16,6 @@ class ARCamera: UIViewController {
     private let arView = ARView(frame: .zero)
     private let placeButton = ARPlaceButton()
     private var deleteGlassButton: CircularGlassButton!
-    private var historyGlassButton: CircularGlassButton!
     private var exitGlassButton: CircularGlassButton!
     private let instructionLabel = PaddedLabel()
     private var backButton: UIButton!
@@ -25,7 +24,6 @@ class ARCamera: UIViewController {
     private var isRotateButtonBlue = false
     private var blurView: UIVisualEffectView!
     private var glassOverlayVisible = true
-    private var scaleGlassButton: CircularGlassButton!
     
     // MARK: - AR State
     private let modelName: String
@@ -53,7 +51,8 @@ class ARCamera: UIViewController {
     private var buttonWidthConstraints: [UIButton: NSLayoutConstraint] = [:]
     private var didSetupButtonStack = false
     private var scaleButtonBackgroundView: UIVisualEffectView!
-
+    private var selectedScaleValue: Float = 1.0
+    
     // Constants
     private let activeSize: CGFloat = 32
     private let inactiveSize: CGFloat = 24
@@ -118,9 +117,7 @@ private extension ARCamera {
         setupInstructionLabel()
         setupOverlayLabel()
         setupDeleteButton()
-        setupHistoryButton()
         setupExitButton()
-        setupScaleButton()
         setupButtonStack()
     }
     
@@ -169,22 +166,6 @@ private extension ARCamera {
         ])
         
         deleteGlassButton.button.addTarget(self, action: #selector(deleteObjectTapped), for: .touchUpInside)
-    }
-    
-    func setupHistoryButton() {
-        historyGlassButton = CircularGlassButton(imageName: "history", tintColor: .white)
-        historyGlassButton.alpha = 0
-        historyGlassButton.isHidden = true
-        
-        view.addSubview(historyGlassButton)
-        NSLayoutConstraint.activate([
-            historyGlassButton.widthAnchor.constraint(equalToConstant: 48),
-            historyGlassButton.heightAnchor.constraint(equalToConstant: 48),
-            historyGlassButton.topAnchor.constraint(equalTo: deleteGlassButton.bottomAnchor, constant: 16),
-            historyGlassButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24)
-        ])
-        
-        historyGlassButton.button.addTarget(self, action: #selector(historyButtonTapped), for: .touchUpInside)
     }
     
     func setupInstructionLabel() {
@@ -241,30 +222,30 @@ private extension ARCamera {
             backButton.heightAnchor.constraint(equalToConstant: 36)
         ])
     }
-
+    
     
     func setupExitButton() {
-
+        
         let exitColor = UIColor(red: 1.0, green: 0.298, blue: 0.337, alpha: 1.0) // #FF4C56
         exitGlassButton = CircularGlassButton(imageName: "exit", tintColor: .white)
         exitGlassButton.setBackgroundColor(exitColor)
-
+        
         exitGlassButton.alpha = 0
         exitGlassButton.isHidden = true
-
+        
         view.addSubview(exitGlassButton)
         NSLayoutConstraint.activate([
             exitGlassButton.widthAnchor.constraint(equalToConstant: 48),
             exitGlassButton.heightAnchor.constraint(equalToConstant: 48),
-            exitGlassButton.topAnchor.constraint(equalTo: historyGlassButton.bottomAnchor, constant: 16),
+            exitGlassButton.topAnchor.constraint(equalTo: deleteGlassButton.bottomAnchor, constant: 16),
             exitGlassButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24)
         ])
-
+        
         view.bringSubviewToFront(exitGlassButton)
-
+        
         exitGlassButton.button.addTarget(self, action: #selector(exitButtonTapped), for: .touchUpInside)
     }
-
+    
     // MARK: History Active state
     
     private func setupSubtitleLabel() {
@@ -273,22 +254,22 @@ private extension ARCamera {
         subtitleLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
         subtitleLabel.textColor = .white
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
-
+        
         subtitleBackgroundView.contentView.addSubview(subtitleLabel)
         subtitleBackgroundView.translatesAutoresizingMaskIntoConstraints = false
         subtitleBackgroundView.layer.cornerRadius = 12
         subtitleBackgroundView.clipsToBounds = true
         subtitleBackgroundView.alpha = 0.9
-
+        
         view.addSubview(subtitleBackgroundView)
-
+        
         // Constraints for background view
         NSLayoutConstraint.activate([
             subtitleBackgroundView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             subtitleBackgroundView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             subtitleBackgroundView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -40)
         ])
-
+        
         // Constraints for the label inside the background
         NSLayoutConstraint.activate([
             subtitleLabel.leadingAnchor.constraint(equalTo: subtitleBackgroundView.leadingAnchor, constant: 12),
@@ -297,7 +278,7 @@ private extension ARCamera {
             subtitleLabel.bottomAnchor.constraint(equalTo: subtitleBackgroundView.bottomAnchor, constant: -8)
         ])
     }
-
+    
     
     private func loadSubtitles() {
         guard let url = Bundle.main.url(forResource: "subtitles", withExtension: "vtt"),
@@ -305,10 +286,10 @@ private extension ARCamera {
             print("Failed to load subtitles")
             return
         }
-
+        
         subtitles = parseWebVTT(contents)
     }
-
+    
     private func playAudio() {
         // Set audio session category to allow playback in silent mode
         do {
@@ -317,23 +298,23 @@ private extension ARCamera {
         } catch {
             print("Failed to set audio session category: \(error)")
         }
-
+        
         guard let audioURL = Bundle.main.url(forResource: "audio", withExtension: "m4a") else {
             print("Missing audio file")
             return
         }
-
+        
         let playerItem = AVPlayerItem(url: audioURL)
         player = AVPlayer(playerItem: playerItem)
         player?.play()
         startSubtitleTimer()
     }
-
+    
     private func startSubtitleTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
             guard let self = self,
                   let currentTime = self.player?.currentTime().seconds else { return }
-
+            
             for (index, subtitle) in self.subtitles.enumerated() {
                 let nextTime = index + 1 < self.subtitles.count ? self.subtitles[index + 1].time : .infinity
                 if currentTime >= subtitle.time && currentTime < nextTime {
@@ -344,32 +325,32 @@ private extension ARCamera {
             self.subtitleLabel.text = ""
         }
     }
-
+    
     private func parseWebVTT(_ contents: String) -> [(time: TimeInterval, text: String)] {
         var result: [(TimeInterval, String)] = []
-
+        
         let blocks = contents.components(separatedBy: "\n\n")
         for block in blocks {
             let lines = block.components(separatedBy: .newlines).filter { !$0.isEmpty }
             guard lines.count >= 2 else { continue }
-
+            
             let timeLine = lines.first(where: { $0.contains("-->") }) ?? ""
             let text = lines.drop { !$0.contains("-->") }.dropFirst().joined(separator: " ")
-
+            
             let timeParts = timeLine.components(separatedBy: " --> ")
             if let startTime = parseTime(timeParts.first) {
                 result.append((startTime, text))
             }
         }
-
+        
         return result
     }
-
+    
     private func parseTime(_ timeString: String?) -> TimeInterval? {
         guard let timeString = timeString else { return nil }
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss.SSS"
-
+        
         let components = timeString.split(separator: ":").map { Double($0.replacingOccurrences(of: ",", with: ".")) ?? 0 }
         if components.count == 3 {
             return components[0] * 3600 + components[1] * 60 + components[2]
@@ -385,47 +366,31 @@ private extension ARCamera {
             print("Failed to load overlay gif")
             return
         }
-
+        
         overlayImageView.image = animatedImage
         overlayImageView.contentMode = .scaleAspectFill
         overlayImageView.alpha = 0.3
         overlayImageView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(overlayImageView)
-
+        
         NSLayoutConstraint.activate([
             overlayImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             overlayImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             overlayImageView.topAnchor.constraint(equalTo: view.topAnchor),
             overlayImageView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
-
+        
         // ✅ Ensure front-most views
         view.bringSubviewToFront(backButton)
         view.bringSubviewToFront(overlayLabel)
         view.bringSubviewToFront(exitGlassButton)
-    }
-
-    private func setupScaleButton() {
-        scaleGlassButton = CircularGlassButton(imageName: "number-2", tintColor: .white)
-        scaleGlassButton.alpha = 0
-        scaleGlassButton.isHidden = true
-
-        view.addSubview(scaleGlassButton)
-
-        NSLayoutConstraint.activate([
-            scaleGlassButton.widthAnchor.constraint(equalToConstant: 48),
-            scaleGlassButton.heightAnchor.constraint(equalToConstant: 48),
-            scaleGlassButton.topAnchor.constraint(equalTo: exitGlassButton.bottomAnchor, constant: 200),
-            scaleGlassButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24)
-        ])
-
-        scaleGlassButton.button.addTarget(self, action: #selector(scaleButtonTapped), for: .touchUpInside)
     }
     
     // MARK: 0.5, 1, 2, 3 X State
     
     private func setupButtonStack() {
         scaleButtonBackgroundView = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterialDark))
+        
         let backgroundView = scaleButtonBackgroundView!
         backgroundView.translatesAutoresizingMaskIntoConstraints = false
         backgroundView.layer.cornerRadius = 20
@@ -433,7 +398,7 @@ private extension ARCamera {
         backgroundView.alpha = 0
         backgroundView.isHidden = true
         view.addSubview(backgroundView)
-
+        
         // Stack view setup...
         let stackView = UIStackView()
         stackView.axis = .horizontal
@@ -441,12 +406,12 @@ private extension ARCamera {
         stackView.alignment = .center
         stackView.translatesAutoresizingMaskIntoConstraints = false
         backgroundView.contentView.addSubview(stackView)
-
+        
         for value in values {
             let button = createButton(title: value)
             stackView.addArrangedSubview(button)
         }
-
+        
         NSLayoutConstraint.activate([
             backgroundView.centerXAnchor.constraint(equalTo: placeButton.centerXAnchor),
             backgroundView.bottomAnchor.constraint(equalTo: placeButton.topAnchor, constant: -32),
@@ -455,16 +420,16 @@ private extension ARCamera {
             stackView.leadingAnchor.constraint(equalTo: backgroundView.contentView.leadingAnchor, constant: 8),
             stackView.trailingAnchor.constraint(equalTo: backgroundView.contentView.trailingAnchor, constant: -8)
         ])
-
+        
         // Default select
         if stackView.arrangedSubviews.count > 1,
-           let second = stackView.arrangedSubviews[1] as? UIButton {
-            setActive(button: second)
-            selectedButton = second
-        }
+               let second = stackView.arrangedSubviews[1] as? UIButton {
+                setActive(button: second)
+                selectedButton = second
+                selectedScaleValue = 1.0 // <- important to use the value for scaling
+            }
     }
-
-
+    
     private func createButton(title: String) -> UIButton {
         let button = UIButton(type: .system)
         button.setTitle(title, for: .normal)
@@ -476,20 +441,20 @@ private extension ARCamera {
         button.clipsToBounds = true
         button.contentEdgeInsets = UIEdgeInsets(top: padding, left: padding, bottom: padding, right: padding)
         button.alpha = 0.3
-
+        
         // Auto Layout
         button.translatesAutoresizingMaskIntoConstraints = false
         let widthConstraint = button.widthAnchor.constraint(equalToConstant: inactiveSize)
         widthConstraint.isActive = true
         button.heightAnchor.constraint(equalTo: button.widthAnchor).isActive = true
         button.layer.cornerRadius = inactiveSize / 2
-
+        
         // Save constraint for updates
         buttonWidthConstraints[button] = widthConstraint
-
+        
         // Tap action
         button.addTarget(self, action: #selector(handleButtonTap(_:)), for: .touchUpInside)
-
+        
         return button
     }
     
@@ -498,42 +463,66 @@ private extension ARCamera {
         button.setTitle("\(baseTitle) x", for: .normal)
         button.setTitleColor(.yellow, for: .normal)
         button.alpha = 1.0
-
+        
         if let constraint = buttonWidthConstraints[button] {
             constraint.constant = activeSize
             button.layer.cornerRadius = activeSize / 2
         }
     }
-
+    
     private func setInactive(button: UIButton) {
         let baseTitle = button.title(for: .normal)?.replacingOccurrences(of: " x", with: "") ?? ""
         button.setTitle(baseTitle, for: .normal)
         button.setTitleColor(.white, for: .normal)
         button.alpha = 0.5
-
+        
         if let constraint = buttonWidthConstraints[button] {
             constraint.constant = inactiveSize
             button.layer.cornerRadius = inactiveSize / 2
         }
     }
     
+    private func updatePlaceButton(toHistory: Bool) {
+        let imageName = toHistory ? "sejarah" : "place"
+        let selector = toHistory ? #selector(historyButtonTapped) : #selector(placeObjectTapped)
+        
+        placeButton.setIcon(named: imageName)
+        
+        // Remove all previous targets
+        placeButton.removeTarget(nil, action: nil, for: .allEvents)
+        placeButton.addTarget(self, action: selector, for: .touchUpInside)
+    }
+    
     @objc private func scaleButtonTapped() {
         guard let entity = placedAnchor else { return }
-        let scale = SIMD3<Float>(repeating: 2.0)
+        let scale = SIMD3<Float>(repeating: selectedScaleValue)
         entity.scale = scale
     }
     
     @objc private func handleButtonTap(_ sender: UIButton) {
-        guard sender != selectedButton else { return }
-
+        // Deactivate previous
         if let previous = selectedButton {
             setInactive(button: previous)
         }
 
+        // Activate new
         setActive(button: sender)
         selectedButton = sender
+
+        // Update selectedScaleValue
+        if let title = sender.title(for: .normal)?.replacingOccurrences(of: " x", with: ""),
+           let scale = Float(title) {
+            selectedScaleValue = scale
+
+            // Apply scale to the placed object
+            if let entity = placedAnchor {
+                let newScale = SIMD3<Float>(repeating: scale)
+                entity.scale = newScale
+            }
+        }
     }
 
+    
 }
 
 // MARK: Actions
@@ -542,11 +531,7 @@ private extension ARCamera {
     @objc private func placeObjectTapped() {
         guard !hasPlacedObject else { return }
         hasPlacedObject = true
-        placeObject()
         
-        placeButton.isEnabled = false
-        placeButton.alpha = 0.3
-          
         view.layoutIfNeeded()
         
         instructionLabel.isHidden = true
@@ -554,11 +539,6 @@ private extension ARCamera {
         deleteGlassButton.alpha = 0
         deleteGlassButton.isHidden = false
         
-        historyGlassButton.alpha = 0
-        historyGlassButton.isHidden = false
-        
-        scaleGlassButton.alpha = 0
-        scaleGlassButton.isHidden = false
         
         scaleButtonBackgroundView.alpha = 0
         scaleButtonBackgroundView.isHidden = false
@@ -566,11 +546,28 @@ private extension ARCamera {
         
         UIView.animate(withDuration: 0.3) {
             self.deleteGlassButton.alpha = 1.0
-            self.historyGlassButton.alpha = 1.0
-            self.scaleGlassButton.alpha = 1.0
             self.scaleButtonBackgroundView.alpha = 1.0
         }
         
+        placeObject()
+        
+        updatePlaceButton(toHistory: true)
+        
+        // Reset scale UI to "1"
+            if let stackView = scaleButtonBackgroundView?.contentView.subviews.first(where: { $0 is UIStackView }) as? UIStackView {
+                for case let button as UIButton in stackView.arrangedSubviews {
+                    setInactive(button: button)
+
+                    if button.title(for: .normal)?.contains("1") == true {
+                        setActive(button: button)
+                        selectedButton = button
+                        selectedScaleValue = 1.0
+                    }
+                }
+            }
+
+            // Also apply scale = 1.0 to placed object
+            placedAnchor?.scale = SIMD3<Float>(repeating: 1.0)
     }
     
     @objc private func deleteObjectTapped() {
@@ -587,18 +584,14 @@ private extension ARCamera {
         
         UIView.animate(withDuration: 0.3, animations: {
             self.deleteGlassButton.alpha = 0
-            self.historyGlassButton.alpha = 0
-            self.scaleGlassButton.alpha = 0
             self.scaleButtonBackgroundView.alpha = 0
         }) { _ in
             self.deleteGlassButton.isHidden = true
-            self.historyGlassButton.isHidden = true
-            self.scaleGlassButton.isHidden = true
             self.scaleButtonBackgroundView.isHidden = true
         }
         
         instructionLabel.isHidden = false
-        
+        updatePlaceButton(toHistory: false)
     }
     
     @objc private func historyButtonTapped() {
@@ -607,7 +600,7 @@ private extension ARCamera {
         // Set exit button visibility *immediately* (opposite of overlay)
         exitGlassButton.isHidden = glassOverlayVisible
         exitGlassButton.alpha = glassOverlayVisible ? 0.0 : 1.0
-
+        
         // Animate overlay elements
         UIView.animate(withDuration: 0.3) {
             let overlayAlpha: CGFloat = self.glassOverlayVisible ? 1.0 : 0.0
@@ -621,20 +614,14 @@ private extension ARCamera {
             setupSubtitleLabel()
             loadSubtitles()
             playAudio()
-
+            
             // Hide extra buttons
             deleteGlassButton.alpha = 0
             deleteGlassButton.isHidden = true
-
-            historyGlassButton.alpha = 0
-            historyGlassButton.isHidden = true
-            
-            scaleGlassButton.alpha = 0
-            scaleGlassButton.isHidden = true
             
             scaleButtonBackgroundView.alpha = 0
             scaleButtonBackgroundView.isHidden = true
-
+            
         }
         
     }
@@ -671,7 +658,7 @@ private extension ARCamera {
         transition.subtype = .fromLeft
         transition.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
         view.window?.layer.add(transition, forKey: kCATransition)
-
+        
         dismiss(animated: false, completion: nil)
     }
     
@@ -679,24 +666,24 @@ private extension ARCamera {
         // Stop player
         player?.pause()
         player = nil
-
+        
         // Invalidate timer
         timer?.invalidate()
         timer = nil
-
+        
         // Remove subtitle label and background
         subtitleLabel.removeFromSuperview()
         subtitleBackgroundView.removeFromSuperview()
-
+        
         // Remove overlay GIF
         overlayImageView.removeFromSuperview()
-
+        
         // Hide exit button
         exitGlassButton.isHidden = true
         exitGlassButton.alpha = 0.0
         
         glassOverlayVisible = true
-
+        
         // Show overlay elements with animation
         UIView.animate(withDuration: 0.3) {
             self.blurView?.alpha = 1.0
@@ -705,19 +692,15 @@ private extension ARCamera {
         
         // Show extra buttons again
         deleteGlassButton.isHidden = false
-        historyGlassButton.isHidden = false
-        scaleGlassButton.isHidden = false
         scaleButtonBackgroundView.isHidden = false
-
+        
         UIView.animate(withDuration: 0.3) {
             self.deleteGlassButton.alpha = 1.0
-            self.historyGlassButton.alpha = 1.0
-            self.scaleGlassButton.alpha = 1.0
             self.scaleButtonBackgroundView.alpha = 1.0
             
         }
     }
-
+    
 }
 
 // MARK: AR - SetUp
@@ -819,5 +802,6 @@ private extension ARCamera {
         
         instructionLabel.isHidden = true
     }
+    
 }
 

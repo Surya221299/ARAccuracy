@@ -68,8 +68,8 @@ class ARPlaceButton: UIButton {
 
             iconImageView.centerXAnchor.constraint(equalTo: innerCircle.centerXAnchor),
             iconImageView.centerYAnchor.constraint(equalTo: innerCircle.centerYAnchor),
-            iconImageView.widthAnchor.constraint(equalToConstant: 30),
-            iconImageView.heightAnchor.constraint(equalToConstant: 30)
+            iconImageView.widthAnchor.constraint(equalToConstant: 55),
+            iconImageView.heightAnchor.constraint(equalToConstant: 55)
         ])
 
         // Initial state
@@ -80,6 +80,10 @@ class ARPlaceButton: UIButton {
     func setEnabled(_ enabled: Bool) {
         isEnabled = enabled
         alpha = enabled ? 1.0 : 0.3
+    }
+    
+    func setIcon(named name: String) {
+        iconImageView.image = UIImage(named: name)
     }
 }
 
