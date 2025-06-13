@@ -18,7 +18,6 @@ class ARCamera: UIViewController {
     private let placeButton = ARPlaceButton()
     private var deleteGlassButton: CircularGlassButton!
     private var historyGlassButton: CircularGlassButton!
-    private var rotateGlassButton: CircularGlassButton!
     private var exitGlassButton: CircularGlassButton!
     private let captureButton = UIButton(type: .system)
     private let instructionLabel = PaddedLabel()
@@ -31,6 +30,7 @@ class ARCamera: UIViewController {
     private var isRotateButtonBlue = false
     private var blurView: UIVisualEffectView!
     private var glassOverlayVisible = true
+    private var scaleGlassButton: CircularGlassButton!
     
     // MARK: - AR State
     private let modelName: String
@@ -114,8 +114,9 @@ private extension ARCamera {
         setupImageRectangle(hidden: true)
         setupDeleteButton()
         setupHistoryButton()
-        setupRotateButton()
         setupExitButton()
+        setupScaleButton()
+
     }
     
     func setupGestures() {
@@ -263,22 +264,6 @@ private extension ARCamera {
         historyGlassButton.button.addTarget(self, action: #selector(historyButtonTapped), for: .touchUpInside)
     }
     
-    func setupRotateButton() {
-        rotateGlassButton = CircularGlassButton(imageName: "rotate", tintColor: .white)
-        rotateGlassButton.button.addTarget(self, action: #selector(rotateButtonTapped), for: .touchUpInside)
-        rotateGlassButton.alpha = 0
-        rotateGlassButton.isHidden = true
-        
-        view.addSubview(rotateGlassButton)
-        
-        NSLayoutConstraint.activate([
-            rotateGlassButton.widthAnchor.constraint(equalToConstant: 48),
-            rotateGlassButton.heightAnchor.constraint(equalToConstant: 48),
-            rotateGlassButton.topAnchor.constraint(equalTo: historyGlassButton.bottomAnchor, constant: 16),
-            rotateGlassButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24)
-        ])
-    }
-    
     func setupCaptureButton(hidden: Bool = false) {
         // Style the captureButton as a custom circle
         captureButton.backgroundColor = UIColor.black.withAlphaComponent(0.5)
@@ -371,7 +356,6 @@ private extension ARCamera {
 
     
     func setupExitButton() {
-        rotateGlassButton.layoutIfNeeded()
 
         let exitColor = UIColor(red: 1.0, green: 0.298, blue: 0.337, alpha: 1.0) // #FF4C56
         exitGlassButton = CircularGlassButton(imageName: "exit", tintColor: .white)
@@ -384,7 +368,7 @@ private extension ARCamera {
         NSLayoutConstraint.activate([
             exitGlassButton.widthAnchor.constraint(equalToConstant: 48),
             exitGlassButton.heightAnchor.constraint(equalToConstant: 48),
-            exitGlassButton.topAnchor.constraint(equalTo: rotateGlassButton.bottomAnchor, constant: 16),
+            exitGlassButton.topAnchor.constraint(equalTo: historyGlassButton.bottomAnchor, constant: 16),
             exitGlassButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24)
         ])
 
@@ -525,6 +509,28 @@ private extension ARCamera {
         view.bringSubviewToFront(exitGlassButton) // already handled, but just in case
     }
 
+    private func setupScaleButton() {
+        scaleGlassButton = CircularGlassButton(imageName: "number-2", tintColor: .white)
+        scaleGlassButton.alpha = 0
+        scaleGlassButton.isHidden = true
+
+        view.addSubview(scaleGlassButton)
+
+        NSLayoutConstraint.activate([
+            scaleGlassButton.widthAnchor.constraint(equalToConstant: 48),
+            scaleGlassButton.heightAnchor.constraint(equalToConstant: 48),
+            scaleGlassButton.topAnchor.constraint(equalTo: exitGlassButton.bottomAnchor, constant: 200),
+            scaleGlassButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24)
+        ])
+
+        scaleGlassButton.button.addTarget(self, action: #selector(scaleButtonTapped), for: .touchUpInside)
+    }
+    
+    @objc private func scaleButtonTapped() {
+        guard let entity = placedAnchor else { return }
+        let scale = SIMD3<Float>(repeating: 2.0)
+        entity.scale = scale
+    }
 
 }
 
@@ -589,14 +595,15 @@ private extension ARCamera {
         deleteGlassButton.isHidden = false
         historyGlassButton.alpha = 0
         historyGlassButton.isHidden = false
-        rotateGlassButton.alpha = 0
-        rotateGlassButton.isHidden = false
+        
+        scaleGlassButton.alpha = 0
+        scaleGlassButton.isHidden = false
         
         
         UIView.animate(withDuration: 0.3) {
             self.deleteGlassButton.alpha = 1.0
             self.historyGlassButton.alpha = 1.0
-            self.rotateGlassButton.alpha = 1.0
+            self.scaleGlassButton.alpha = 1.0
         }
         
     }
@@ -607,7 +614,7 @@ private extension ARCamera {
             placedAnchor = nil
         }
         
-        hasPlacedObject = false // 🔁 allow placement again
+        hasPlacedObject = false
         captureButton.isHidden = true
         placeButton.isEnabled = true
         placeButton.alpha = 1.0
@@ -617,11 +624,11 @@ private extension ARCamera {
         UIView.animate(withDuration: 0.3, animations: {
             self.deleteGlassButton.alpha = 0
             self.historyGlassButton.alpha = 0
-            self.rotateGlassButton.alpha = 0
+            self.scaleGlassButton.alpha = 0
         }) { _ in
             self.deleteGlassButton.isHidden = true
             self.historyGlassButton.isHidden = true
-            self.rotateGlassButton.isHidden = true
+            self.scaleGlassButton.isHidden = true
         }
         
         instructionLabel.isHidden = false
@@ -657,9 +664,9 @@ private extension ARCamera {
 
             historyGlassButton.alpha = 0
             historyGlassButton.isHidden = true
-
-            rotateGlassButton.alpha = 0
-            rotateGlassButton.isHidden = true
+            
+            scaleGlassButton.alpha = 0
+            scaleGlassButton.isHidden = true
         }
         
     }
@@ -771,13 +778,6 @@ private extension ARCamera {
         dismiss(animated: false, completion: nil)
     }
     
-    @objc private func rotateButtonTapped() {
-        isRotateButtonBlue.toggle()
-        
-        let newColor: UIColor = isRotateButtonBlue ? .systemBlue : .white
-        rotateGlassButton.button.tintColor = newColor
-    }
-    
     @objc private func exitButtonTapped() {
         // Stop player
         player?.pause()
@@ -811,12 +811,13 @@ private extension ARCamera {
         // Show extra buttons again
         deleteGlassButton.isHidden = false
         historyGlassButton.isHidden = false
-        rotateGlassButton.isHidden = false
+        scaleGlassButton.isHidden = false
 
         UIView.animate(withDuration: 0.3) {
             self.deleteGlassButton.alpha = 1.0
             self.historyGlassButton.alpha = 1.0
-            self.rotateGlassButton.alpha = 1.0
+            self.scaleGlassButton.alpha = 1.0
+            
         }
     }
 
